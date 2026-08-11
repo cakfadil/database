@@ -1129,7 +1129,7 @@
     }
 
     // --- API CONFIG & FETCH WRAPPER (GitHub Pages Compatible) ---
-    var DEFAULT_GAS_URL = ''; // Opsional: Masukkan Web App URL default Anda di sini
+    var DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxzDHjEaRqWlGrLHOr0gwXqs0dPNYwvl2DC_tGiJQzMwvJKn2KazZ0lzSDAUONcmgj5/exec';
 
     function getApiUrl() {
       return localStorage.getItem('GAS_WEB_APP_URL') || DEFAULT_GAS_URL;
@@ -1206,7 +1206,9 @@
       try {
         const response = await fetch(url, {
           method: 'POST',
-          body: JSON.stringify(payload)
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload),
+          redirect: 'follow'
         });
         const res = await response.json();
         if (res && res.success === false) {
