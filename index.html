@@ -230,6 +230,29 @@
       outline: none;
     }
     .input-with-icon input { padding-left: 48px; }
+
+    /* Hide number input spinners */
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none !important;
+      margin: 0 !important;
+      display: none !important;
+    }
+    input[type="number"] {
+      -moz-appearance: textfield !important;
+      appearance: none !important;
+    }
+    /* Firefox specific */
+    input[type=number]::-moz-number-spin-box {
+      display: none !important;
+    }
+    /* Chrome/Safari/Edge specific */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      display: none !important;
+      -webkit-appearance: none !important;
+      margin: 0 !important;
+    }
     
     input:focus, select:focus {
       border-color: rgba(102, 126, 234, 0.5);
@@ -276,7 +299,7 @@
       border: 1px solid var(--glass-border);
     }
     .btn-outline:hover { background: rgba(255,255,255,0.05); }
-    .btn-small { padding: 8px 16px; font-size: 0.9rem; width: auto; }
+    .btn-small { padding: 4px 8px; font-size: 0.5rem; width: auto; }
 
     /* Login Page */
     #loginPage {
@@ -471,30 +494,33 @@
 
     /* Tables */
     .table-responsive {
-      overflow-x: visible;
+      overflow-x: auto;
       margin: 0;
       padding: 0;
+      -webkit-overflow-scrolling: touch;
     }
     table {
       width: 100%;
       border-collapse: separate;
       border-spacing: 0;
-      min-width: 0;
-      font-size: 0.9rem;
+      min-width: 600px;
+      font-size: 0.85rem;
     }
     th, td {
-      padding: 10px 8px;
+      padding: 8px 6px;
       text-align: left;
       border-bottom: 1px solid rgba(255,255,255,0.05);
       vertical-align: middle;
+      white-space: nowrap;
     }
     th {
       font-weight: 600;
       color: var(--text-secondary);
-      font-size: 0.85rem;
+      font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       background: rgba(0,0,0,0.2);
+      padding: 8px 10px;
     }
     th:first-child { border-top-left-radius: 12px; }
     th:last-child { border-top-right-radius: 12px; }
@@ -514,8 +540,8 @@
     .toggle-switch {
       position: relative;
       display: inline-block;
-      width: 48px;
-      height: 24px;
+      width: 24px;
+      height: 12px;
     }
     .toggle-switch input { opacity: 0; width: 0; height: 0; }
     .toggle-slider {
@@ -529,8 +555,8 @@
     .toggle-slider:before {
       position: absolute;
       content: "";
-      height: 18px;
-      width: 18px;
+      height: 6px;
+      width: 6px;
       left: 3px;
       bottom: 3px;
       background-color: white;
@@ -538,7 +564,7 @@
       border-radius: 50%;
     }
     input:checked + .toggle-slider { background: var(--gradient-primary); }
-    input:checked + .toggle-slider:before { transform: translateX(24px); }
+    input:checked + .toggle-slider:before { transform: translateX(12px); }
 
     /* Summary Cards */
     .summary-grid {
@@ -580,9 +606,9 @@
 
     /* Badges */
     .badge {
-      padding: 6px 12px;
+      padding: 4px 8px;
       border-radius: 20px;
-      font-size: 0.75rem;
+      font-size: 0.5rem;
       font-weight: 600;
       display: inline-flex;
       align-items: center;
@@ -679,35 +705,37 @@
         width: 100%;
         justify-content: space-between;
       }
-      .tabs-nav { flex-direction: column; }
-      .tab-btn { width: 100%; min-width: 0; }
-      .subtabs-nav { flex-direction: column; }
-      .subtabs-nav .tab-btn { width: 100%; }
+      .tabs-nav { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
+      .tab-btn { width: auto; min-width: 120px; white-space: nowrap; }
+      .subtabs-nav { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
+      .subtabs-nav .tab-btn { width: auto; min-width: 110px; white-space: nowrap; }
       .dashboard-card { padding: 16px; }
       .bottom-bar { flex-direction: column; gap: 16px; text-align: center; margin: 0 -16px -16px; padding: 12px 16px; }
       .bottom-bar .btn { width: 100%; }
       .modal-card { padding: 20px; }
       .summary-grid { grid-template-columns: 1fr; }
-      .table-responsive { overflow-x: visible; }
-      table { display: block; font-size: 0.8rem; }
-      thead { display: none; }
-      tbody, tr, td { display: block; width: 100%; }
-      tr { padding: 8px 0; }
-      td { padding: 6px 0; border-bottom: none; }
-      td::before {
-        content: attr(data-label);
-        display: block;
-        font-size: 0.68rem;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 2px;
-      }
-      .table-input { width: 100%; }
+      .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      table { font-size: 0.5rem; min-width: 300px; }
+      th, td { padding: 6px 4px; }
+      th { font-size: 0.6rem; padding: 6px 8px; }
+      .table-input { width: 80px; padding: 6px 8px; font-size: 0.5rem; }
       .input-group label { font-size: 0.8rem; }
       input, select { padding: 12px 14px; font-size: 0.95rem; }
       [style*="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;"] {
         grid-template-columns: 1fr !important;
+      }
+      [style*="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;"] {
+        grid-template-columns: 1fr !important;
+      }
+      [style*="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;"] {
+        grid-template-columns: 1fr !important;
+      }
+      [style*="display:flex; gap:8px;"] {
+        flex-direction: column;
+        gap: 12px !important;
+      }
+      [style*="display:flex; gap:8px;"] button {
+        width: 100%;
       }
     }
   </style>
@@ -774,9 +802,9 @@
 
     <div class="container">
       <div class="tabs-nav glass">
-        <button class="tab-btn active" onclick="switchAdminTab('batch')">📋 Angsuran Masal</button>
+        <button class="tab-btn active" onclick="switchAdminTab('batch')">📋 Angsuran</button>
         <button class="tab-btn" onclick="switchAdminTab('pinjaman')">💳 Pinjaman</button>
-        <button class="tab-btn" onclick="switchAdminTab('users')">👥 Kelola Pengguna</button>
+        <button class="tab-btn" onclick="switchAdminTab('users')">⚙️ Setting</button>
       </div>
 
       <!-- Tab 1: Batch Payments -->
@@ -843,7 +871,7 @@
             </div>
             <div class="input-group" style="max-width: 300px;">
               <label>Nominal Pinjaman Baru</label>
-              <input type="number" id="newLoanAmount" placeholder="Contoh: 1000000">
+              <input type="text" id="newLoanAmount" placeholder="Contoh: 1000000" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
             </div>
             <div style="margin-top: 10px;">
               <button class="btn btn-primary btn-small" style="width: auto;" onclick="createNewLoan()">Buat Pinjaman Baru</button>
@@ -886,7 +914,7 @@
 
               <div class="input-group" style="max-width: 400px;">
                 <label>Nominal Pinjaman Baru</label>
-                <input type="number" id="renewNewAmount" placeholder="Contoh: 1000000" oninput="calculateRenewPreview()">
+                <input type="text" id="renewNewAmount" placeholder="Contoh: 1000000" oninput="this.value = this.value.replace(/[^0-9]/g, ''); calculateRenewPreview()">
               </div>
             </div>
 
@@ -940,15 +968,14 @@
             <table id="usersTable">
               <thead>
                 <tr>
-                  <th>Username</th>
-                  <th>Password</th>
+                  <th>User</th>
+                  <th>Pass</th>
                   <th>Nama</th>
-                  <th>Role</th>
-                  <th>Resot / Sheet</th>
-                  <th>No. Anggota</th>
-                  <th>Lihat Detail</th>
-                  <th>Lihat Tabungan</th>
-                  <th>Aksi</th>
+                  <th>R</th>
+                  <th>No</th>
+                  <th>Det</th>
+                  <th>Tab</th>
+                  <th>⚙️</th>
                 </tr>
               </thead>
               <tbody id="usersTableBody">
@@ -1459,7 +1486,7 @@
               <td data-label="Nama" style="font-weight:500;">${item.nama}</td>
               <td data-label="Saldo">${formatRupiah(item.saldo)}</td>
               <td data-label="Bayar">
-                <input type="number" class="table-input" data-id="${item.idPinjaman}" data-no="${item.noAnggota}" data-nama="${item.nama}" placeholder="0" oninput="calcBatchTotal()">
+                <input type="text" class="table-input" data-id="${item.idPinjaman}" data-no="${item.noAnggota}" data-nama="${item.nama}" placeholder="0" oninput="this.value = this.value.replace(/[^0-9]/g, ''); calcBatchTotal()">
               </td>
             </tr>
           `;
@@ -1629,7 +1656,7 @@
       tbody.innerHTML = '';
 
       if (users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="empty-state">Tidak ada pengguna yang sesuai filter</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Tidak ada pengguna yang sesuai filter</td></tr>';
         return;
       }
 
@@ -1639,7 +1666,6 @@
             <td data-label="Username">${u.username}</td>
             <td data-label="Password">${u.password || '-'}</td>
             <td data-label="Nama">${u.displayName}</td>
-            <td data-label="Role"><span class="badge ${u.role==='admin'?'badge-warning':'badge-success'}">${u.role}</span></td>
             <td data-label="Resot / Sheet">${u.sheetParam || '-'}</td>
             <td data-label="No. Anggota">${u.noAnggota || '-'}</td>
             <td data-label="Lihat Detail">

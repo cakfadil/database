@@ -157,7 +157,7 @@ function handleApiRequest(params, method) {
         case 'admin/new-loan':
           return jsonOutput(apiCreateNewLoan(token, params));
         case 'admin/search-nasabah':
-          return jsonOutput(apiSearchNasabah(token, params.noAnggota));
+          return jsonOutput(apiSearchNasabah(token, params.resot, params.noAnggota));
         case 'admin/users':
           return jsonOutput(apiGetUsers(token));
         case 'admin/add-user':
@@ -426,7 +426,7 @@ function apiRenewLoan(token, data) {
   var users = getSheetData(SHEET_SETTING);
   for (var j = 0; j < users.length; j++) {
     if (users[j].No_Anggota === oldLoan.No_Anggota) {
-      settingsSheet.getRange(users[j]._rowIndex, 9).setValue(newLoanId); // Col 9: Current_Loan_ID
+      settingsSheet.getRange(users[j]._rowIndex, 10).setValue(newLoanId); // Col 10: Current_Loan_ID
       break;
     }
   }
@@ -454,7 +454,7 @@ function apiGetUsers(token) {
     result.push({
       id: u.ID,
       username: u.Username,
-      password: u.Password,
+      password: u.Password_Plain || u.Password,
       displayName: u.Display_Name,
       role: u.Role,
       sheetParam: u.Sheet_Param,
@@ -487,11 +487,13 @@ function apiAddUser(token, data) {
 
   var newId = generateId('U');
   var plainPassword = String(data.password || '').trim();
+  var hashedPassword = hashSHA256(plainPassword);
   var settingsSheet = getSheetByName(SHEET_SETTING);
 
   settingsSheet.appendRow([
     newId,
     data.username,
+    hashedPassword,
     plainPassword,
     data.displayName,
     data.role || 'nasabah',
@@ -518,9 +520,9 @@ function apiToggleSetting(token, data) {
 
   var colIndex = 0;
   if (data.field === 'Is_Show_Detail') {
-    colIndex = 8;
+    colIndex = 9;
   } else if (data.field === 'Is_Show_Tabungan') {
-    colIndex = 10;
+    colIndex = 11;
   } else {
     return { success: false, error: 'Invalid field', code: 400 };
   }
@@ -585,7 +587,7 @@ function apiCreateNewLoan(token, data) {
   var userFound = false;
   for (var j = 0; j < users.length; j++) {
     if (String(users[j].No_Anggota).trim() === noAnggota) {
-      settingsSheet.getRange(users[j]._rowIndex, 9).setValue(newLoanId);
+      settingsSheet.getRange(users[j]._rowIndex, 10).setValue(newLoanId);
       userFound = true;
       break;
     }
@@ -594,9 +596,10 @@ function apiCreateNewLoan(token, data) {
   if (!userFound) {
     var newUserId = generateId('U');
     var defaultUsername = noAnggota.toLowerCase();
-    var defaultPassword = hashSHA256('pass123');
+    var defaultPasswordPlain = 'pass123';
+    var defaultPasswordHash = hashSHA256(defaultPasswordPlain);
     settingsSheet.appendRow([
-      newUserId, defaultUsername, defaultPassword, nama, 'nasabah', resot, noAnggota, true, newLoanId, true
+      newUserId, defaultUsername, defaultPasswordHash, defaultPasswordPlain, nama, 'nasabah', resot, noAnggota, true, newLoanId, true
     ]);
   }
 
@@ -660,15 +663,17 @@ function apiUpdateUser(token, data) {
 
   var settingsSheet = getSheetByName(SHEET_SETTING);
   settingsSheet.getRange(targetRow, 2).setValue(String(data.username || '').trim()); // Col 2: Username
-  settingsSheet.getRange(targetRow, 4).setValue(data.displayName); // Col 4: Display_Name
-  settingsSheet.getRange(targetRow, 5).setValue(data.role);        // Col 5: Role
-  settingsSheet.getRange(targetRow, 6).setValue(data.sheetParam || ''); // Col 6: Sheet_Param
-  settingsSheet.getRange(targetRow, 7).setValue(data.noAnggota || '');   // Col 7: No_Anggota
+  settingsSheet.getRange(targetRow, 5).setValue(data.displayName); // Col 5: Display_Name
+  settingsSheet.getRange(targetRow, 6).setValue(data.role);        // Col 6: Role
+  settingsSheet.getRange(targetRow, 7).setValue(data.sheetParam || ''); // Col 7: Sheet_Param
+  settingsSheet.getRange(targetRow, 8).setValue(data.noAnggota || '');   // Col 8: No_Anggota
 
-  if (data.password && data.password.trim().length >= 6) {
-    settingsSheet.getRange(targetRow, 3).setValue(data.password.trim()); // Col 3: Password
-  } else if (data.newPassword && data.newPassword.trim().length >= 6) {
-    settingsSheet.getRange(targetRow, 3).setValue(data.newPassword.trim()); // Col 3: Password
+  var newPassword = data.password || data.newPassword;
+  if (newPassword && newPassword.trim().length >= 6) {
+    var plainPassword = newPassword.trim();
+    var hashedPassword = hashSHA256(plainPassword);
+    settingsSheet.getRange(targetRow, 3).setValue(hashedPassword); // Col 3: Password (hash)
+    settingsSheet.getRange(targetRow, 4).setValue(plainPassword);  // Col 4: Password_Plain
   }
 
   return { success: true, message: 'Data pengguna berhasil diperbarui' };
@@ -786,7 +791,8 @@ function apiChangePassword(token, oldPassword, newPassword) {
   }
 
   var settingsSheet = getSheetByName(SHEET_SETTING);
-  settingsSheet.getRange(targetRow, 3).setValue(hashSHA256(newPassword)); // Col 3: Password
+  settingsSheet.getRange(targetRow, 3).setValue(hashSHA256(newPassword)); // Col 3: Password (hash)
+  settingsSheet.getRange(targetRow, 4).setValue(newPassword); // Col 4: Password_Plain
 
   return { success: true, message: 'Password changed successfully' };
 }
@@ -826,12 +832,12 @@ function setupDatabase() {
   }
 
   // Setting
-  var setHeaders = ['ID', 'Username', 'Password', 'Display_Name', 'Role', 'Sheet_Param', 'No_Anggota', 'Is_Show_Detail', 'Current_Loan_ID', 'Is_Show_Tabungan'];
+  var setHeaders = ['ID', 'Username', 'Password', 'Password_Plain', 'Display_Name', 'Role', 'Sheet_Param', 'No_Anggota', 'Is_Show_Detail', 'Current_Loan_ID', 'Is_Show_Tabungan'];
   var setRows = [
-    ['U001', 'admin', 'admin123', 'Administrator', 'admin', '', '', true, '', true],
-    ['U002', 'budi', 'pass123', 'Budi Santoso', 'nasabah', '22', 'A001', true, 'P001', true],
-    ['U003', 'siti', 'pass123', 'Siti Aminah', 'nasabah', '22', 'A002', true, 'P002', true],
-    ['U004', 'andi', 'pass123', 'Andi Wijaya', 'nasabah', '23', 'A003', false, 'P003', false]
+    ['U001', 'admin', hashSHA256('admin123'), 'admin123', 'Administrator', 'admin', '', '', true, '', true],
+    ['U002', 'budi', hashSHA256('pass123'), 'pass123', 'Budi Santoso', 'nasabah', '22', 'A001', true, 'P001', true],
+    ['U003', 'siti', hashSHA256('pass123'), 'pass123', 'Siti Aminah', 'nasabah', '22', 'A002', true, 'P002', true],
+    ['U004', 'andi', hashSHA256('pass123'), 'pass123', 'Andi Wijaya', 'nasabah', '23', 'A003', false, 'P003', false]
   ];
   initSheet(SHEET_SETTING, setHeaders, setRows);
 
