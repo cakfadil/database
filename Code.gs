@@ -145,10 +145,16 @@ function handleApiRequest(params, method) {
           return jsonOutput(apiBatchPayments(token, params.resot, params.payments));
         case 'admin/renew':
           return jsonOutput(apiRenewLoan(token, params));
+        case 'admin/new-loan':
+          return jsonOutput(apiCreateNewLoan(token, params));
+        case 'admin/search-nasabah':
+          return jsonOutput(apiSearchNasabah(token, params.noAnggota));
         case 'admin/users':
           return jsonOutput(apiGetUsers(token));
         case 'admin/add-user':
           return jsonOutput(apiAddUser(token, params));
+        case 'admin/update-user':
+          return jsonOutput(apiUpdateUser(token, params));
         case 'admin/toggle-setting':
           return jsonOutput(apiToggleSetting(token, params));
         default:
@@ -522,6 +528,131 @@ function apiToggleSetting(token, data) {
   return { success: true, message: 'Setting updated successfully' };
 }
 
+/**
+ * Creates a new loan (Pinjaman Baru).
+ * @param {string} token - Session token
+ * @param {Object} data - { resot, noAnggota, nama, pinjamanBaru }
+ * @returns {Object} JSON response
+ */
+function apiCreateNewLoan(token, data) {
+  if (!data.resot || !data.noAnggota || !data.nama || !data.pinjamanBaru) {
+    return { success: false, error: 'Data resot, no anggota, nama, dan nominal wajib diisi', code: 400 };
+  }
+  var pinjamanBaru = Number(data.pinjamanBaru);
+  if (isNaN(pinjamanBaru) || pinjamanBaru <= 0) {
+    return { success: false, error: 'Nominal pinjaman baru tidak valid', code: 400 };
+  }
+
+  var resot = String(data.resot).trim();
+  var noAnggota = String(data.noAnggota).trim();
+  var nama = String(data.nama).trim();
+
+  var loans = getSheetData(SHEET_PINJAMAN);
+  for (var i = 0; i < loans.length; i++) {
+    if (String(loans[i].No_Anggota).trim() === noAnggota && loans[i].Status === 'Berjalan') {
+      return { success: false, error: 'Nasabah dengan No. Anggota ini masih memiliki pinjaman aktif', code: 400 };
+    }
+  }
+
+  var today = formatDate(new Date());
+  var newLoanId = generateId('P');
+  var saldoBaru = pinjamanBaru * 1.2;
+  var tabunganAwal = pinjamanBaru * 0.05;
+
+  var pinjamanSheet = getSheetByName(SHEET_PINJAMAN);
+  pinjamanSheet.appendRow([
+    newLoanId, resot, today, noAnggota, nama, pinjamanBaru, saldoBaru, tabunganAwal, 'Berjalan'
+  ]);
+
+  var settingsSheet = getSheetByName(SHEET_SETTING);
+  var users = getSheetData(SHEET_SETTING);
+  var userFound = false;
+  for (var j = 0; j < users.length; j++) {
+    if (String(users[j].No_Anggota).trim() === noAnggota) {
+      settingsSheet.getRange(users[j]._rowIndex, 9).setValue(newLoanId);
+      userFound = true;
+      break;
+    }
+  }
+
+  if (!userFound) {
+    var newUserId = generateId('U');
+    var defaultUsername = noAnggota.toLowerCase();
+    var defaultPassword = hashSHA256('pass123');
+    settingsSheet.appendRow([
+      newUserId, defaultUsername, defaultPassword, nama, 'nasabah', resot, noAnggota, true, newLoanId, true
+    ]);
+  }
+
+  return { success: true, newLoanId: newLoanId, message: 'Pinjaman baru berhasil dibuat' };
+}
+
+/**
+ * Searches active loan by No. Anggota.
+ * @param {string} token - Session token
+ * @param {string} noAnggota - Member number
+ * @returns {Object} JSON response
+ */
+function apiSearchNasabah(token, noAnggota) {
+  if (!noAnggota) return { success: false, error: 'No. Anggota wajib diisi', code: 400 };
+  var cleanNo = String(noAnggota).trim().toLowerCase();
+  var loans = getSheetData(SHEET_PINJAMAN);
+
+  for (var i = 0; i < loans.length; i++) {
+    if (String(loans[i].No_Anggota).trim().toLowerCase() === cleanNo && loans[i].Status === 'Berjalan') {
+      return {
+        success: true,
+        data: {
+          idPinjaman: loans[i].ID_Pinjaman,
+          resot: loans[i].Resot,
+          noAnggota: loans[i].No_Anggota,
+          nama: loans[i].Nama,
+          pinjaman: loans[i].Pinjaman,
+          saldo: loans[i].Saldo,
+          tabungan: loans[i].Tabungan,
+          status: loans[i].Status
+        }
+      };
+    }
+  }
+  return { success: false, error: 'Pinjaman aktif tidak ditemukan untuk No. Anggota: ' + noAnggota, code: 404 };
+}
+
+/**
+ * Updates an existing user's information.
+ * @param {string} token - Session token
+ * @param {Object} data - { userId, displayName, role, sheetParam, noAnggota, newPassword }
+ * @returns {Object} JSON response
+ */
+function apiUpdateUser(token, data) {
+  if (!data.userId || !data.displayName || !data.role) {
+    return { success: false, error: 'ID User, Nama Tampilan, dan Role wajib diisi', code: 400 };
+  }
+
+  var users = getSheetData(SHEET_SETTING);
+  var targetRow = 0;
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].ID === data.userId) {
+      targetRow = users[i]._rowIndex;
+      break;
+    }
+  }
+
+  if (targetRow === 0) return { success: false, error: 'User tidak ditemukan', code: 404 };
+
+  var settingsSheet = getSheetByName(SHEET_SETTING);
+  settingsSheet.getRange(targetRow, 4).setValue(data.displayName); // Col 4: Display_Name
+  settingsSheet.getRange(targetRow, 5).setValue(data.role);        // Col 5: Role
+  settingsSheet.getRange(targetRow, 6).setValue(data.sheetParam || ''); // Col 6: Sheet_Param
+  settingsSheet.getRange(targetRow, 7).setValue(data.noAnggota || '');   // Col 7: No_Anggota
+
+  if (data.newPassword && data.newPassword.trim().length >= 6) {
+    settingsSheet.getRange(targetRow, 3).setValue(hashSHA256(data.newPassword.trim())); // Col 3: Password
+  }
+
+  return { success: true, message: 'Data pengguna berhasil diperbarui' };
+}
+
 // ==========================================
 // SECTION 6: API - NASABAH FUNCTIONS
 // ==========================================
@@ -677,29 +808,29 @@ function setupDatabase() {
   var setHeaders = ['ID', 'Username', 'Password', 'Display_Name', 'Role', 'Sheet_Param', 'No_Anggota', 'Is_Show_Detail', 'Current_Loan_ID', 'Is_Show_Tabungan'];
   var setRows = [
     ['U001', 'admin', hashSHA256('admin123'), 'Administrator', 'admin', '', '', true, '', true],
-    ['U002', 'budi', hashSHA256('pass123'), 'Budi Santoso', 'nasabah', 'Resot22', 'A001', true, 'P001', true],
-    ['U003', 'siti', hashSHA256('pass123'), 'Siti Aminah', 'nasabah', 'Resot22', 'A002', true, 'P002', true],
-    ['U004', 'andi', hashSHA256('pass123'), 'Andi Wijaya', 'nasabah', 'Resot23', 'A003', false, 'P003', false]
+    ['U002', 'budi', hashSHA256('pass123'), 'Budi Santoso', 'nasabah', '22', 'A001', true, 'P001', true],
+    ['U003', 'siti', hashSHA256('pass123'), 'Siti Aminah', 'nasabah', '22', 'A002', true, 'P002', true],
+    ['U004', 'andi', hashSHA256('pass123'), 'Andi Wijaya', 'nasabah', '23', 'A003', false, 'P003', false]
   ];
   initSheet(SHEET_SETTING, setHeaders, setRows);
 
   // Pinjaman
   var pinHeaders = ['ID_Pinjaman', 'Resot', 'Tanggal', 'No_Anggota', 'Nama', 'Pinjaman', 'Saldo', 'Tabungan', 'Status'];
   var pinRows = [
-    ['P001', 'Resot22', '2026-07-01', 'A001', 'Budi Santoso', 1000000, 800000, 50000, 'Berjalan'],
-    ['P002', 'Resot22', '2026-07-01', 'A002', 'Siti Aminah', 2000000, 1500000, 100000, 'Berjalan'],
-    ['P003', 'Resot23', '2026-07-15', 'A003', 'Andi Wijaya', 1500000, 1200000, 75000, 'Berjalan']
+    ['P001', '22', '2026-07-01', 'A001', 'Budi Santoso', 1000000, 800000, 50000, 'Berjalan'],
+    ['P002', '22', '2026-07-01', 'A002', 'Siti Aminah', 2000000, 1500000, 100000, 'Berjalan'],
+    ['P003', '23', '2026-07-15', 'A003', 'Andi Wijaya', 1500000, 1200000, 75000, 'Berjalan']
   ];
   initSheet(SHEET_PINJAMAN, pinHeaders, pinRows);
 
   // Transaksi
   var transHeaders = ['ID', 'Tanggal', 'Resot', 'No_Anggota', 'Nama', 'Pembayaran', 'ID_Pinjaman', 'Keterangan'];
   var transRows = [
-    ['T001', '2026-08-04', 'Resot22', 'A001', 'Budi Santoso', 100000, 'P001', 'Angsuran Mingguan'],
-    ['T002', '2026-08-04', 'Resot22', 'A002', 'Siti Aminah', 250000, 'P002', 'Angsuran Mingguan'],
-    ['T003', '2026-08-04', 'Resot23', 'A003', 'Andi Wijaya', 150000, 'P003', 'Angsuran Mingguan'],
-    ['T004', '2026-08-11', 'Resot22', 'A001', 'Budi Santoso', 100000, 'P001', 'Angsuran Mingguan'],
-    ['T005', '2026-08-11', 'Resot22', 'A002', 'Siti Aminah', 250000, 'P002', 'Angsuran Mingguan']
+    ['T001', '2026-08-04', '22', 'A001', 'Budi Santoso', 100000, 'P001', 'Angsuran Mingguan'],
+    ['T002', '2026-08-04', '22', 'A002', 'Siti Aminah', 250000, 'P002', 'Angsuran Mingguan'],
+    ['T003', '2026-08-04', '23', 'A003', 'Andi Wijaya', 150000, 'P003', 'Angsuran Mingguan'],
+    ['T004', '2026-08-11', '22', 'A001', 'Budi Santoso', 100000, 'P001', 'Angsuran Mingguan'],
+    ['T005', '2026-08-11', '22', 'A002', 'Siti Aminah', 250000, 'P002', 'Angsuran Mingguan']
   ];
   initSheet(SHEET_TRANSAKSI, transHeaders, transRows);
 

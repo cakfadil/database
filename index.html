@@ -396,9 +396,11 @@
       border-radius: 16px;
       border: 1px solid var(--glass-border);
       overflow-x: auto;
+      flex-wrap: wrap;
     }
     .tab-btn {
       flex: 1;
+      min-width: 140px;
       padding: 12px 16px;
       background: transparent;
       border: none;
@@ -414,6 +416,18 @@
       justify-content: center;
       gap: 8px;
       white-space: nowrap;
+    }
+    .subtabs-nav {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .subtabs-nav .tab-btn {
+      flex: 0 0 auto;
+      min-width: 120px;
+      padding: 10px 14px;
+      font-size: 0.9rem;
     }
     .tab-btn:hover { color: white; background: rgba(255,255,255,0.05); }
     .tab-btn.active {
@@ -457,20 +471,22 @@
 
     /* Tables */
     .table-responsive {
-      overflow-x: auto;
-      margin: 0 -24px;
-      padding: 0 24px;
+      overflow-x: visible;
+      margin: 0;
+      padding: 0;
     }
     table {
       width: 100%;
       border-collapse: separate;
       border-spacing: 0;
-      min-width: 600px;
+      min-width: 0;
+      font-size: 0.9rem;
     }
     th, td {
-      padding: 16px;
+      padding: 10px 8px;
       text-align: left;
       border-bottom: 1px solid rgba(255,255,255,0.05);
+      vertical-align: middle;
     }
     th {
       font-weight: 600;
@@ -653,11 +669,46 @@
     
     /* Responsive */
     @media (max-width: 768px) {
+      .container { padding: 0 12px 24px; }
+      .dashboard-nav {
+        flex-direction: column;
+        gap: 12px;
+        padding: 14px 16px;
+      }
+      .nav-user {
+        width: 100%;
+        justify-content: space-between;
+      }
       .tabs-nav { flex-direction: column; }
-      .bottom-bar { flex-direction: column; gap: 16px; text-align: center; }
+      .tab-btn { width: 100%; min-width: 0; }
+      .subtabs-nav { flex-direction: column; }
+      .subtabs-nav .tab-btn { width: 100%; }
+      .dashboard-card { padding: 16px; }
+      .bottom-bar { flex-direction: column; gap: 16px; text-align: center; margin: 0 -16px -16px; padding: 12px 16px; }
       .bottom-bar .btn { width: 100%; }
-      .modal-card { padding: 24px; }
+      .modal-card { padding: 20px; }
       .summary-grid { grid-template-columns: 1fr; }
+      .table-responsive { overflow-x: visible; }
+      table { display: block; font-size: 0.8rem; }
+      thead { display: none; }
+      tbody, tr, td { display: block; width: 100%; }
+      tr { padding: 8px 0; }
+      td { padding: 6px 0; border-bottom: none; }
+      td::before {
+        content: attr(data-label);
+        display: block;
+        font-size: 0.68rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 2px;
+      }
+      .table-input { width: 100%; }
+      .input-group label { font-size: 0.8rem; }
+      input, select { padding: 12px 14px; font-size: 0.95rem; }
+      [style*="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;"] {
+        grid-template-columns: 1fr !important;
+      }
     }
   </style>
 </head>
@@ -724,7 +775,7 @@
     <div class="container">
       <div class="tabs-nav glass">
         <button class="tab-btn active" onclick="switchAdminTab('batch')">📋 Angsuran Masal</button>
-        <button class="tab-btn" onclick="switchAdminTab('renew')">🔄 Pembaruan Pinjaman</button>
+        <button class="tab-btn" onclick="switchAdminTab('pinjaman')">💳 Pinjaman</button>
         <button class="tab-btn" onclick="switchAdminTab('users')">👥 Kelola Pengguna</button>
       </div>
 
@@ -745,14 +796,13 @@
               <thead>
                 <tr>
                   <th>No</th>
-                  <th>No. Anggota</th>
-                  <th>Nama Nasabah</th>
-                  <th>Sisa Saldo</th>
-                  <th>Nominal Bayar</th>
+                  <th>Nama</th>
+                  <th>Saldo</th>
+                  <th>Bayar</th>
                 </tr>
               </thead>
               <tbody id="batchTableBody">
-                <tr><td colspan="5" class="empty-state">Pilih resot untuk menampilkan data</td></tr>
+                <tr><td colspan="4" class="empty-state">Pilih resot untuk menampilkan data</td></tr>
               </tbody>
             </table>
           </div>
@@ -764,67 +814,100 @@
         </div>
       </div>
 
-      <!-- Tab 2: Renew Loan -->
-      <div id="tab-renew" class="tab-content">
+      <!-- Tab 2: Pinjaman -->
+      <div id="tab-pinjaman" class="tab-content">
         <div class="dashboard-card glass">
-          <h2 class="card-title">Pembaruan Pinjaman</h2>
-          
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
-            <div class="input-group">
+          <h2 class="card-title">Pinjaman</h2>
+
+          <div class="subtabs-nav">
+            <button class="tab-btn active" onclick="switchPinjamanSubTab('new')">➕ Baru</button>
+            <button class="tab-btn" onclick="switchPinjamanSubTab('renew')">🔄 Pelunasan</button>
+          </div>
+
+          <div id="pinjaman-new" class="pinjaman-subtab active">
+            <div class="input-group" style="max-width: 400px;">
               <label>Pilih Resot</label>
-              <select id="renewResotSelect" onchange="loadRenewNasabah()">
+              <select id="newLoanResotSelect">
                 <option value="">-- Pilih Resot --</option>
               </select>
             </div>
-            <div class="input-group">
-              <label>Pilih Nasabah</label>
-              <select id="renewNasabahSelect" onchange="loadNasabahLoanDetails()" disabled>
-                <option value="">-- Pilih Nasabah --</option>
-              </select>
-            </div>
-          </div>
-
-          <div id="renewDetailsSection" style="display:none; padding: 20px; background: rgba(0,0,0,0.2); border-radius: 12px; margin-bottom: 24px;">
-            <h3 style="margin-bottom: 16px; font-size: 1rem; color: var(--text-secondary);">Info Pinjaman Saat Ini</h3>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
-              <div>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">ID Pinjaman</div>
-                <div id="renewCurrentId" style="font-weight: 600;">-</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+              <div class="input-group">
+                <label>No. Anggota</label>
+                <input type="text" id="newLoanNoAnggota" placeholder="Contoh: A001">
               </div>
-              <div>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">Sisa Saldo</div>
-                <div id="renewCurrentSaldo" style="font-weight: 600;">-</div>
-              </div>
-              <div>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">Total Tabungan</div>
-                <div id="renewCurrentTabungan" style="font-weight: 600;">-</div>
+              <div class="input-group">
+                <label>Nama Nasabah</label>
+                <input type="text" id="newLoanNama" placeholder="Contoh: Budi Santoso">
               </div>
             </div>
-
-            <div class="input-group" style="max-width: 400px;">
+            <div class="input-group" style="max-width: 300px;">
               <label>Nominal Pinjaman Baru</label>
-              <input type="number" id="renewNewAmount" placeholder="Contoh: 1000000" oninput="calculateRenewPreview()">
+              <input type="number" id="newLoanAmount" placeholder="Contoh: 1000000">
+            </div>
+            <div style="margin-top: 10px;">
+              <button class="btn btn-primary btn-small" style="width: auto;" onclick="createNewLoan()">Buat Pinjaman Baru</button>
             </div>
           </div>
 
-          <div id="renewPreviewSection" style="display:none;" class="dashboard-card glass">
-            <h3 style="margin-bottom: 16px; font-size: 1rem;" class="text-gradient-accent">Preview Perhitungan</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-              <div style="padding: 16px; background: rgba(0, 210, 160, 0.1); border-radius: 12px; border: 1px solid rgba(0,210,160,0.3);">
-                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7);">Saldo Baru (x1.2)</div>
-                <div id="renewPreviewSaldo" style="font-size: 1.5rem; font-weight: 700; color: #00d2a0;">Rp 0</div>
+          <div id="pinjaman-renew" class="pinjaman-subtab" style="display:none;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+              <div class="input-group">
+                <label>Pilih Resot</label>
+                <select id="renewResotSelect">
+                  <option value="">-- Pilih Resot --</option>
+                </select>
               </div>
-              <div style="padding: 16px; background: rgba(102, 126, 234, 0.1); border-radius: 12px; border: 1px solid rgba(102,126,234,0.3);">
-                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7);">Tabungan Baru (+5%)</div>
-                <div id="renewPreviewTabungan" style="font-size: 1.5rem; font-weight: 700; color: #8c9eff;">Rp 0</div>
+              <div class="input-group">
+                <label>Pencarian No Anggota</label>
+                <div style="display:flex; gap:8px;">
+                  <input type="text" id="renewNoAnggotaInput" placeholder="Masukkan No Anggota">
+                  <button class="btn btn-outline btn-small" type="button" onclick="searchRenewNasabah()" style="width:auto; min-width:90px;">Cari</button>
+                </div>
               </div>
             </div>
-            
-            <div style="margin-top: 24px; text-align: right;">
-              <button class="btn btn-primary" onclick="showRenewConfirm()">Proses Pembaruan</button>
+
+            <div id="renewDetailsSection" style="display:none; padding: 20px; background: rgba(0,0,0,0.2); border-radius: 12px; margin-bottom: 24px;">
+              <h3 style="margin-bottom: 16px; font-size: 1rem; color: var(--text-secondary);">Info Pinjaman Saat Ini</h3>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+                <div>
+                  <div style="font-size: 0.8rem; color: var(--text-muted);">ID Pinjaman</div>
+                  <div id="renewCurrentId" style="font-weight: 600;">-</div>
+                </div>
+                <div>
+                  <div style="font-size: 0.8rem; color: var(--text-muted);">Sisa Saldo</div>
+                  <div id="renewCurrentSaldo" style="font-weight: 600;">-</div>
+                </div>
+                <div>
+                  <div style="font-size: 0.8rem; color: var(--text-muted);">Total Tabungan</div>
+                  <div id="renewCurrentTabungan" style="font-weight: 600;">-</div>
+                </div>
+              </div>
+
+              <div class="input-group" style="max-width: 400px;">
+                <label>Nominal Pinjaman Baru</label>
+                <input type="number" id="renewNewAmount" placeholder="Contoh: 1000000" oninput="calculateRenewPreview()">
+              </div>
+            </div>
+
+            <div id="renewPreviewSection" style="display:none;" class="dashboard-card glass">
+              <h3 style="margin-bottom: 16px; font-size: 1rem;" class="text-gradient-accent">Preview Perhitungan</h3>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div style="padding: 16px; background: rgba(0, 210, 160, 0.1); border-radius: 12px; border: 1px solid rgba(0,210,160,0.3);">
+                  <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7);">Saldo Baru (x1.2)</div>
+                  <div id="renewPreviewSaldo" style="font-size: 1.5rem; font-weight: 700; color: #00d2a0;">Rp 0</div>
+                </div>
+                <div style="padding: 16px; background: rgba(102, 126, 234, 0.1); border-radius: 12px; border: 1px solid rgba(102,126,234,0.3);">
+                  <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7);">Tabungan Baru (+5%)</div>
+                  <div id="renewPreviewTabungan" style="font-size: 1.5rem; font-weight: 700; color: #8c9eff;">Rp 0</div>
+                </div>
+              </div>
+              
+              <div style="margin-top: 24px; text-align: right;">
+                <button class="btn btn-primary" onclick="showRenewConfirm()">Proses Pembaruan</button>
+              </div>
             </div>
           </div>
-
         </div>
       </div>
 
@@ -847,6 +930,7 @@
                   <th>No. Anggota</th>
                   <th>Lihat Detail</th>
                   <th>Lihat Tabungan</th>
+                  <th>Aksi</th>
                 </tr>
               </thead>
               <tbody id="usersTableBody">
@@ -969,7 +1053,7 @@
   <div id="addUserModal" class="modal-overlay">
     <div class="modal-card glass">
       <div class="modal-header">
-        <h3 class="text-gradient">Tambah Pengguna Baru</h3>
+        <h3 id="userModalTitle" class="text-gradient">Tambah Pengguna Baru</h3>
         <button class="modal-close" onclick="closeModal('addUserModal')">×</button>
       </div>
       <form onsubmit="handleAddUser(event)">
@@ -979,7 +1063,7 @@
             <input type="text" id="addUsername" required>
           </div>
           <div class="input-group">
-            <label>Password</label>
+            <label id="addPasswordLabel">Password</label>
             <input type="text" id="addPassword" required>
           </div>
           <div class="input-group">
@@ -1008,7 +1092,7 @@
 
         <div class="modal-footer">
           <button type="button" class="btn btn-outline btn-small" onclick="closeModal('addUserModal')">Batal</button>
-          <button type="submit" class="btn btn-primary btn-small">Simpan</button>
+          <button id="userSubmitBtn" type="submit" class="btn btn-primary btn-small">Simpan</button>
         </div>
       </form>
     </div>
@@ -1072,9 +1156,13 @@
       user: null,
       currentPage: 'login',
       adminTab: 'batch',
+      pinjamanSubTab: 'new',
       resotList: [],
       batchData: [],
-      renewSelectedLoanId: null
+      users: [],
+      renewSelectedLoanId: null,
+      renewSelectedLoan: null,
+      editingUserId: null
     };
 
     // --- UTILS ---
@@ -1193,6 +1281,12 @@
         payload = { action: 'admin/users', token: args[0] };
       } else if (fn === 'apiAddUser') {
         payload = Object.assign({ action: 'admin/add-user', token: args[0] }, args[1]);
+      } else if (fn === 'apiUpdateUser') {
+        payload = Object.assign({ action: 'admin/update-user', token: args[0] }, args[1]);
+      } else if (fn === 'apiCreateNewLoan') {
+        payload = Object.assign({ action: 'admin/new-loan', token: args[0] }, args[1]);
+      } else if (fn === 'apiSearchNasabah') {
+        payload = { action: 'admin/search-nasabah', token: args[0], noAnggota: args[1] };
       } else if (fn === 'apiToggleSetting') {
         payload = Object.assign({ action: 'admin/toggle-setting', token: args[0] }, args[1]);
       } else if (fn === 'apiGetNasabahSummary') {
@@ -1275,7 +1369,7 @@
 
     // --- ADMIN FUNCTIONS ---
     function switchAdminTab(tab) {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tabs-nav .tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       
       event.currentTarget.classList.add('active');
@@ -1283,6 +1377,14 @@
       state.adminTab = tab;
 
       if(tab === 'users') loadUsers();
+    }
+
+    function switchPinjamanSubTab(tab) {
+      document.querySelectorAll('.subtabs-nav .tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.pinjaman-subtab').forEach(c => c.style.display = 'none');
+      event.currentTarget.classList.add('active');
+      document.getElementById(`pinjaman-${tab}`).style.display = 'block';
+      state.pinjamanSubTab = tab;
     }
 
     async function initAdmin() {
@@ -1293,13 +1395,16 @@
         
         const sel1 = document.getElementById('batchResotSelect');
         const sel2 = document.getElementById('renewResotSelect');
+        const sel3 = document.getElementById('newLoanResotSelect');
         
         sel1.innerHTML = '<option value="">-- Pilih Resot --</option>';
         sel2.innerHTML = '<option value="">-- Pilih Resot --</option>';
+        sel3.innerHTML = '<option value="">-- Pilih Resot --</option>';
         
         state.resotList.forEach(r => {
           sel1.innerHTML += `<option value="${r}">${r}</option>`;
           sel2.innerHTML += `<option value="${r}">${r}</option>`;
+          sel3.innerHTML += `<option value="${r}">${r}</option>`;
         });
       } catch (e) {
         showToast('Gagal memuat data resot', 'error');
@@ -1313,7 +1418,7 @@
       const resot = document.getElementById('batchResotSelect').value;
       const tbody = document.getElementById('batchTableBody');
       if (!resot) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Pilih resot untuk menampilkan data</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Pilih resot untuk menampilkan data</td></tr>';
         document.getElementById('batchTotalText').textContent = 'Rp 0';
         return;
       }
@@ -1324,19 +1429,18 @@
         state.batchData = (res && res.data) ? res.data : [];
         
         if (state.batchData.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Tidak ada nasabah di resot ini</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Tidak ada nasabah di resot ini</td></tr>';
           return;
         }
 
         tbody.innerHTML = '';
-        state.batchData.forEach((item, index) => {
+        state.batchData.forEach((item) => {
           tbody.innerHTML += `
             <tr>
-              <td>${index + 1}</td>
-              <td>${item.noAnggota}</td>
-              <td style="font-weight:500;">${item.nama}</td>
-              <td>${formatRupiah(item.saldo)}</td>
-              <td>
+              <td data-label="No">${item.noAnggota}</td>
+              <td data-label="Nama" style="font-weight:500;">${item.nama}</td>
+              <td data-label="Saldo">${formatRupiah(item.saldo)}</td>
+              <td data-label="Bayar">
                 <input type="number" class="table-input" data-id="${item.idPinjaman}" data-no="${item.noAnggota}" data-nama="${item.nama}" placeholder="0" oninput="calcBatchTotal()">
               </td>
             </tr>
@@ -1393,9 +1497,8 @@
     }
 
     // Renew Tab
-    async function loadRenewNasabah() {
-      const resot = document.getElementById('renewResotSelect').value;
-      const sel = document.getElementById('renewNasabahSelect');
+    async function searchRenewNasabah() {
+      const noAnggota = document.getElementById('renewNoAnggotaInput').value.trim();
       const sec1 = document.getElementById('renewDetailsSection');
       const sec2 = document.getElementById('renewPreviewSection');
       
@@ -1403,49 +1506,33 @@
       sec2.style.display = 'none';
       document.getElementById('renewNewAmount').value = '';
 
-      if (!resot) {
-        sel.innerHTML = '<option value="">-- Pilih Nasabah --</option>';
-        sel.disabled = true;
+      if (!noAnggota) {
+        showToast('Masukkan No. Anggota terlebih dahulu', 'error');
         return;
       }
 
       showLoading();
       try {
-        const res = await callApi('apiGetNasabahByResot', state.token, resot);
-        const data = (res && res.data) ? res.data : [];
-        sel.innerHTML = '<option value="">-- Pilih Nasabah --</option>';
-        data.forEach(item => {
-          sel.innerHTML += `<option value='${JSON.stringify(item).replace(/'/g, "&#39;")}'>${item.noAnggota} - ${item.nama}</option>`;
-        });
-        sel.disabled = false;
+        const res = await callApi('apiSearchNasabah', state.token, noAnggota);
+        const data = (res && res.data) ? res.data : null;
+        if (!data) {
+          throw new Error('Data nasabah tidak ditemukan');
+        }
+
+        state.renewSelectedLoanId = data.idPinjaman;
+        state.renewSelectedLoan = data;
+
+        document.getElementById('renewCurrentId').textContent = data.idPinjaman;
+        document.getElementById('renewCurrentSaldo').textContent = formatRupiah(data.saldo);
+        document.getElementById('renewCurrentTabungan').textContent = formatRupiah(data.tabungan || 0);
+        
+        sec1.style.display = 'block';
+        sec2.style.display = 'none';
       } catch (e) {
-        showToast('Gagal memuat nasabah', 'error');
+        showToast(e.message || 'Gagal mencari nasabah', 'error');
       } finally {
         hideLoading();
       }
-    }
-
-    function loadNasabahLoanDetails() {
-      const sel = document.getElementById('renewNasabahSelect').value;
-      const sec1 = document.getElementById('renewDetailsSection');
-      const sec2 = document.getElementById('renewPreviewSection');
-      
-      if (!sel) {
-        sec1.style.display = 'none';
-        sec2.style.display = 'none';
-        return;
-      }
-
-      const data = JSON.parse(sel);
-      state.renewSelectedLoanId = data.idPinjaman;
-      
-      document.getElementById('renewCurrentId').textContent = data.idPinjaman;
-      document.getElementById('renewCurrentSaldo').textContent = formatRupiah(data.saldo);
-      document.getElementById('renewCurrentTabungan').textContent = formatRupiah(data.tabungan || 0); 
-      
-      sec1.style.display = 'block';
-      sec2.style.display = 'none';
-      document.getElementById('renewNewAmount').value = '';
     }
 
     function calculateRenewPreview() {
@@ -1457,8 +1544,7 @@
         return;
       }
 
-      const sel = JSON.parse(document.getElementById('renewNasabahSelect').value);
-      const currentTabungan = parseFloat(sel.tabungan || 0);
+      const currentTabungan = parseFloat((state.renewSelectedLoan && state.renewSelectedLoan.tabungan) || 0);
 
       const saldoBaru = amount * 1.2;
       const tabunganBaru = currentTabungan + (amount * 0.05);
@@ -1471,9 +1557,13 @@
 
     function showRenewConfirm() {
       const amount = document.getElementById('renewNewAmount').value;
-      const sel = JSON.parse(document.getElementById('renewNasabahSelect').value);
+      const data = state.renewSelectedLoan;
+      if (!data) {
+        showToast('Cari nasabah terlebih dahulu', 'error');
+        return;
+      }
       
-      document.getElementById('confirmRenewName').textContent = sel.nama;
+      document.getElementById('confirmRenewName').textContent = data.nama;
       document.getElementById('confirmRenewAmount').textContent = formatRupiah(amount);
       
       openModal('confirmRenewModal');
@@ -1486,8 +1576,11 @@
       try {
         await callApi('apiRenewLoan', state.token, { idPinjaman: state.renewSelectedLoanId, pinjamanBaru: amount });
         showToast('Pinjaman berhasil diperbarui', 'success');
-        document.getElementById('renewNasabahSelect').value = '';
-        loadNasabahLoanDetails(); // reset UI
+        document.getElementById('renewNoAnggotaInput').value = '';
+        state.renewSelectedLoanId = null;
+        state.renewSelectedLoan = null;
+        document.getElementById('renewDetailsSection').style.display = 'none';
+        document.getElementById('renewPreviewSection').style.display = 'none';
       } catch (e) {
         showToast(e.message || 'Gagal memperbarui', 'error');
       } finally {
@@ -1501,28 +1594,32 @@
       try {
         const res = await callApi('apiGetUsers', state.token);
         const users = (res && res.data) ? res.data : [];
+        state.users = users;
         const tbody = document.getElementById('usersTableBody');
         tbody.innerHTML = '';
         
         users.forEach(u => {
           tbody.innerHTML += `
             <tr>
-              <td>${u.username}</td>
-              <td>${u.displayName}</td>
-              <td><span class="badge ${u.role==='admin'?'badge-warning':'badge-success'}">${u.role}</span></td>
-              <td>${u.sheetParam || '-'}</td>
-              <td>${u.noAnggota || '-'}</td>
-              <td>
+              <td data-label="Username">${u.username}</td>
+              <td data-label="Nama">${u.displayName}</td>
+              <td data-label="Role"><span class="badge ${u.role==='admin'?'badge-warning':'badge-success'}">${u.role}</span></td>
+              <td data-label="Resot / Sheet">${u.sheetParam || '-'}</td>
+              <td data-label="No. Anggota">${u.noAnggota || '-'}</td>
+              <td data-label="Lihat Detail">
                 <label class="toggle-switch">
                   <input type="checkbox" ${u.isShowDetail ? 'checked' : ''} onchange="toggleUserSetting('${u.id}', 'Is_Show_Detail', this.checked)">
                   <span class="toggle-slider"></span>
                 </label>
               </td>
-              <td>
+              <td data-label="Lihat Tabungan">
                 <label class="toggle-switch">
                   <input type="checkbox" ${u.isShowTabungan ? 'checked' : ''} onchange="toggleUserSetting('${u.id}', 'Is_Show_Tabungan', this.checked)">
                   <span class="toggle-slider"></span>
                 </label>
+              </td>
+              <td data-label="Aksi">
+                <button class="btn btn-outline btn-small" onclick="openEditUserModal('${u.id}')">Edit</button>
               </td>
             </tr>
           `;
@@ -1545,12 +1642,36 @@
     }
 
     function openAddUserModal() {
+      state.editingUserId = null;
+      document.getElementById('userModalTitle').textContent = 'Tambah Pengguna Baru';
+      document.getElementById('userSubmitBtn').textContent = 'Simpan';
+      document.getElementById('addPasswordLabel').textContent = 'Password';
+      document.getElementById('addPassword').required = true;
       document.getElementById('addUsername').value = '';
       document.getElementById('addPassword').value = '';
       document.getElementById('addDisplayName').value = '';
       document.getElementById('addRole').value = 'nasabah';
       document.getElementById('addSheetParam').value = '';
       document.getElementById('addNoAnggota').value = '';
+      toggleAddUserNasabahFields();
+      openModal('addUserModal');
+    }
+
+    function openEditUserModal(userId) {
+      const user = state.users.find(u => u.id === userId);
+      if (!user) return;
+
+      state.editingUserId = userId;
+      document.getElementById('userModalTitle').textContent = 'Edit Pengguna';
+      document.getElementById('userSubmitBtn').textContent = 'Simpan Perubahan';
+      document.getElementById('addPasswordLabel').textContent = 'Password (opsional)';
+      document.getElementById('addPassword').required = false;
+      document.getElementById('addUsername').value = user.username || '';
+      document.getElementById('addPassword').value = '';
+      document.getElementById('addDisplayName').value = user.displayName || '';
+      document.getElementById('addRole').value = user.role || 'nasabah';
+      document.getElementById('addSheetParam').value = user.sheetParam || '';
+      document.getElementById('addNoAnggota').value = user.noAnggota || '';
       toggleAddUserNasabahFields();
       openModal('addUserModal');
     }
@@ -1571,19 +1692,57 @@
         noAnggota: document.getElementById('addNoAnggota').value
       };
       
+      if (state.editingUserId) {
+        payload.userId = state.editingUserId;
+        if (payload.password) payload.newPassword = payload.password;
+        delete payload.password;
+      }
+      
       closeModal('addUserModal');
       showLoading();
       try {
-        await callApi('apiAddUser', state.token, payload);
-        showToast('Pengguna berhasil ditambahkan', 'success');
+        if (state.editingUserId) {
+          await callApi('apiUpdateUser', state.token, payload);
+          showToast('Pengguna berhasil diperbarui', 'success');
+        } else {
+          await callApi('apiAddUser', state.token, payload);
+          showToast('Pengguna berhasil ditambahkan', 'success');
+        }
         loadUsers();
       } catch(e) {
-        showToast(e.message || 'Gagal menambah pengguna', 'error');
+        showToast(e.message || 'Gagal menyimpan pengguna', 'error');
+      } finally {
+        hideLoading();
+        state.editingUserId = null;
+      }
+    }
+
+
+    async function createNewLoan() {
+      const resot = document.getElementById('newLoanResotSelect').value;
+      const noAnggota = document.getElementById('newLoanNoAnggota').value.trim();
+      const nama = document.getElementById('newLoanNama').value.trim();
+      const amount = document.getElementById('newLoanAmount').value.trim();
+
+      if (!resot || !noAnggota || !nama || !amount) {
+        showToast('Semua field pinjaman baru wajib diisi', 'error');
+        return;
+      }
+
+      showLoading();
+      try {
+        await callApi('apiCreateNewLoan', state.token, { resot, noAnggota, nama, pinjamanBaru: amount });
+        showToast('Pinjaman baru berhasil dibuat', 'success');
+        document.getElementById('newLoanResotSelect').value = '';
+        document.getElementById('newLoanNoAnggota').value = '';
+        document.getElementById('newLoanNama').value = '';
+        document.getElementById('newLoanAmount').value = '';
+      } catch (e) {
+        showToast(e.message || 'Gagal membuat pinjaman baru', 'error');
       } finally {
         hideLoading();
       }
     }
-
 
     // --- NASABAH FUNCTIONS ---
     async function initNasabah() {

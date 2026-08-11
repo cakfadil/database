@@ -87,6 +87,6 @@ pinjaman-mingguan/
 | Username | Password | Role | Akses Khusus |
 |---|---|---|---|
 | `admin` | `admin123` | Administrator | Akses penuh (Batch Payment, Renewal, User Management) |
-| `budi` | `pass123` | Nasabah | Resot22 - Transaksi & Tabungan Terbuka |
-| `siti` | `pass123` | Nasabah | Resot22 - Transaksi & Tabungan Terbuka |
-| `andi` | `pass123` | Nasabah | Resot23 - Transaksi & Tabungan Disembunyikan Admin |
+| `budi` | `pass123` | Nasabah | 22 - Transaksi & Tabungan Terbuka |
+| `siti` | `pass123` | Nasabah | 22 - Transaksi & Tabungan Terbuka |
+| `andi` | `pass123` | Nasabah | 23 - Transaksi & Tabungan Disembunyikan Admin |
