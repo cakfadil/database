@@ -186,12 +186,14 @@ function apiLogin(username, password) {
     return { success: false, error: 'Username and password are required', code: 400 };
   }
   
+  var cleanUsername = String(username).trim().toLowerCase();
+  var cleanPassword = String(password).trim();
   var users = getSheetData(SHEET_SETTING);
-  var hashedPass = hashSHA256(password);
+  var hashedPass = hashSHA256(cleanPassword);
   
   for (var i = 0; i < users.length; i++) {
     var user = users[i];
-    if (user.Username === username && user.Password === hashedPass) {
+    if (String(user.Username).trim().toLowerCase() === cleanUsername && String(user.Password).trim() === hashedPass) {
       var token = generateToken();
       var sessionData = {
         userId: user.ID,

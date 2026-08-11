@@ -1226,8 +1226,8 @@
     // --- AUTH ---
     async function handleLogin(e) {
       e.preventDefault();
-      const u = document.getElementById('loginUsername').value;
-      const p = document.getElementById('loginPassword').value;
+      const u = document.getElementById('loginUsername').value.trim();
+      const p = document.getElementById('loginPassword').value.trim();
       const err = document.getElementById('loginError');
       err.style.display = 'none';
 
