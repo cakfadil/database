@@ -86,6 +86,15 @@ function formatDate(date) {
   return Utilities.formatDate(new Date(date), Session.getScriptTimeZone(), 'yyyy-MM-dd');
 }
 
+function normalizeResot(value) {
+  if (value === null || value === undefined) return '';
+  var s = String(value).trim();
+  if (!s) return '';
+  s = s.replace(/^resot\s*/i, '');
+  s = s.replace(/\s+/g, '');
+  return s;
+}
+
 function jsonOutput(data) {
   return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
 }
@@ -241,8 +250,9 @@ function apiGetResotList(token) {
   var loans = getSheetData(SHEET_PINJAMAN);
   var resotMap = {};
   for (var i = 0; i < loans.length; i++) {
-    if (loans[i].Status === 'Berjalan' && loans[i].Resot) {
-      resotMap[loans[i].Resot] = true;
+    var normalizedResot = normalizeResot(loans[i].Resot);
+    if (loans[i].Status === 'Berjalan' && normalizedResot) {
+      resotMap[normalizedResot] = true;
     }
   }
   var resots = Object.keys(resotMap).sort();
@@ -259,10 +269,11 @@ function apiGetNasabahByResot(token, resot) {
   if (!resot) {
     return { success: false, error: 'Resot parameter is required', code: 400 };
   }
+  var normalizedResot = normalizeResot(resot);
   var loans = getSheetData(SHEET_PINJAMAN);
   var result = [];
   for (var i = 0; i < loans.length; i++) {
-    if (loans[i].Status === 'Berjalan' && loans[i].Resot === resot) {
+    if (loans[i].Status === 'Berjalan' && normalizeResot(loans[i].Resot) === normalizedResot) {
       result.push({
         noAnggota: loans[i].No_Anggota,
         nama: loans[i].Nama,
@@ -293,6 +304,7 @@ function apiBatchPayments(token, resot, payments) {
     return { success: false, error: 'Payments must be a non-empty array', code: 400 };
   }
 
+  var normalizedResot = normalizeResot(resot);
   var transSheet = getSheetByName(SHEET_TRANSAKSI);
   var pinjamanSheet = getSheetByName(SHEET_PINJAMAN);
   var loans = getSheetData(SHEET_PINJAMAN);
@@ -309,7 +321,7 @@ function apiBatchPayments(token, resot, payments) {
     transSheet.appendRow([
       generateId('T'),
       today,
-      resot,
+      normalizedResot,
       p.noAnggota,
       p.nama,
       nominal,
@@ -369,6 +381,7 @@ function apiRenewLoan(token, data) {
   var today = formatDate(new Date());
   var transSheet = getSheetByName(SHEET_TRANSAKSI);
   var pinjamanSheet = getSheetByName(SHEET_PINJAMAN);
+  var normalizedResot = normalizeResot(oldLoan.Resot);
   var sisaSaldoLama = Number(oldLoan.Saldo) || 0;
 
   // Insert trans Pelunasan
@@ -376,7 +389,7 @@ function apiRenewLoan(token, data) {
     transSheet.appendRow([
       generateId('T'),
       today,
-      oldLoan.Resot,
+      normalizedResot,
       oldLoan.No_Anggota,
       oldLoan.Nama,
       sisaSaldoLama,
@@ -543,7 +556,7 @@ function apiCreateNewLoan(token, data) {
     return { success: false, error: 'Nominal pinjaman baru tidak valid', code: 400 };
   }
 
-  var resot = String(data.resot).trim();
+  var resot = normalizeResot(data.resot);
   var noAnggota = String(data.noAnggota).trim();
   var nama = String(data.nama).trim();
 
@@ -604,7 +617,7 @@ function apiSearchNasabah(token, noAnggota) {
         success: true,
         data: {
           idPinjaman: loans[i].ID_Pinjaman,
-          resot: loans[i].Resot,
+          resot: normalizeResot(loans[i].Resot),
           noAnggota: loans[i].No_Anggota,
           nama: loans[i].Nama,
           pinjaman: loans[i].Pinjaman,
@@ -688,7 +701,7 @@ function apiGetNasabahSummary(token) {
       if (loans[j].ID_Pinjaman === user.Current_Loan_ID) {
         currentLoan = {
           idPinjaman: loans[j].ID_Pinjaman,
-          resot: loans[j].Resot,
+          resot: normalizeResot(loans[j].Resot),
           tanggal: formatDate(loans[j].Tanggal),
           pinjaman: loans[j].Pinjaman,
           saldo: loans[j].Saldo,

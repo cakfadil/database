@@ -871,7 +871,7 @@
               <h3 style="margin-bottom: 16px; font-size: 1rem; color: var(--text-secondary);">Info Pinjaman Saat Ini</h3>
               <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
                 <div>
-                  <div style="font-size: 0.8rem; color: var(--text-muted);">ID Pinjaman</div>
+                  <div style="font-size: 0.8rem; color: var(--text-muted);">Nama Nasabah</div>
                   <div id="renewCurrentId" style="font-weight: 600;">-</div>
                 </div>
                 <div>
@@ -1522,7 +1522,7 @@
         state.renewSelectedLoanId = data.idPinjaman;
         state.renewSelectedLoan = data;
 
-        document.getElementById('renewCurrentId').textContent = data.idPinjaman;
+        document.getElementById('renewCurrentId').textContent = data.nama;
         document.getElementById('renewCurrentSaldo').textContent = formatRupiah(data.saldo);
         document.getElementById('renewCurrentTabungan').textContent = formatRupiah(data.tabungan || 0);
         
