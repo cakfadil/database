@@ -208,7 +208,9 @@ function apiLogin(username, password) {
   
   for (var i = 0; i < users.length; i++) {
     var user = users[i];
-    if (String(user.Username).trim().toLowerCase() === cleanUsername && String(user.Password).trim() === hashedPass) {
+    var storedPassword = String(user.Password || '').trim();
+    var passwordMatches = (storedPassword === cleanPassword) || (storedPassword === hashedPass);
+    if (String(user.Username).trim().toLowerCase() === cleanUsername && passwordMatches) {
       var token = generateToken();
       var sessionData = {
         userId: user.ID,
@@ -452,6 +454,7 @@ function apiGetUsers(token) {
     result.push({
       id: u.ID,
       username: u.Username,
+      password: u.Password,
       displayName: u.Display_Name,
       role: u.Role,
       sheetParam: u.Sheet_Param,
@@ -483,13 +486,13 @@ function apiAddUser(token, data) {
   }
 
   var newId = generateId('U');
-  var hashedPassword = hashSHA256(data.password);
+  var plainPassword = String(data.password || '').trim();
   var settingsSheet = getSheetByName(SHEET_SETTING);
 
   settingsSheet.appendRow([
     newId,
     data.username,
-    hashedPassword,
+    plainPassword,
     data.displayName,
     data.role || 'nasabah',
     data.sheetParam || '',
@@ -606,13 +609,15 @@ function apiCreateNewLoan(token, data) {
  * @param {string} noAnggota - Member number
  * @returns {Object} JSON response
  */
-function apiSearchNasabah(token, noAnggota) {
+function apiSearchNasabah(token, resot, noAnggota) {
+  if (!resot) return { success: false, error: 'Resot wajib diisi', code: 400 };
   if (!noAnggota) return { success: false, error: 'No. Anggota wajib diisi', code: 400 };
+  var normalizedResot = normalizeResot(resot);
   var cleanNo = String(noAnggota).trim().toLowerCase();
   var loans = getSheetData(SHEET_PINJAMAN);
 
   for (var i = 0; i < loans.length; i++) {
-    if (String(loans[i].No_Anggota).trim().toLowerCase() === cleanNo && loans[i].Status === 'Berjalan') {
+    if (String(loans[i].No_Anggota).trim().toLowerCase() === cleanNo && normalizeResot(loans[i].Resot) === normalizedResot && loans[i].Status === 'Berjalan') {
       return {
         success: true,
         data: {
@@ -654,13 +659,16 @@ function apiUpdateUser(token, data) {
   if (targetRow === 0) return { success: false, error: 'User tidak ditemukan', code: 404 };
 
   var settingsSheet = getSheetByName(SHEET_SETTING);
+  settingsSheet.getRange(targetRow, 2).setValue(String(data.username || '').trim()); // Col 2: Username
   settingsSheet.getRange(targetRow, 4).setValue(data.displayName); // Col 4: Display_Name
   settingsSheet.getRange(targetRow, 5).setValue(data.role);        // Col 5: Role
   settingsSheet.getRange(targetRow, 6).setValue(data.sheetParam || ''); // Col 6: Sheet_Param
   settingsSheet.getRange(targetRow, 7).setValue(data.noAnggota || '');   // Col 7: No_Anggota
 
-  if (data.newPassword && data.newPassword.trim().length >= 6) {
-    settingsSheet.getRange(targetRow, 3).setValue(hashSHA256(data.newPassword.trim())); // Col 3: Password
+  if (data.password && data.password.trim().length >= 6) {
+    settingsSheet.getRange(targetRow, 3).setValue(data.password.trim()); // Col 3: Password
+  } else if (data.newPassword && data.newPassword.trim().length >= 6) {
+    settingsSheet.getRange(targetRow, 3).setValue(data.newPassword.trim()); // Col 3: Password
   }
 
   return { success: true, message: 'Data pengguna berhasil diperbarui' };
@@ -820,10 +828,10 @@ function setupDatabase() {
   // Setting
   var setHeaders = ['ID', 'Username', 'Password', 'Display_Name', 'Role', 'Sheet_Param', 'No_Anggota', 'Is_Show_Detail', 'Current_Loan_ID', 'Is_Show_Tabungan'];
   var setRows = [
-    ['U001', 'admin', hashSHA256('admin123'), 'Administrator', 'admin', '', '', true, '', true],
-    ['U002', 'budi', hashSHA256('pass123'), 'Budi Santoso', 'nasabah', '22', 'A001', true, 'P001', true],
-    ['U003', 'siti', hashSHA256('pass123'), 'Siti Aminah', 'nasabah', '22', 'A002', true, 'P002', true],
-    ['U004', 'andi', hashSHA256('pass123'), 'Andi Wijaya', 'nasabah', '23', 'A003', false, 'P003', false]
+    ['U001', 'admin', 'admin123', 'Administrator', 'admin', '', '', true, '', true],
+    ['U002', 'budi', 'pass123', 'Budi Santoso', 'nasabah', '22', 'A001', true, 'P001', true],
+    ['U003', 'siti', 'pass123', 'Siti Aminah', 'nasabah', '22', 'A002', true, 'P002', true],
+    ['U004', 'andi', 'pass123', 'Andi Wijaya', 'nasabah', '23', 'A003', false, 'P003', false]
   ];
   initSheet(SHEET_SETTING, setHeaders, setRows);
 

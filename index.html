@@ -919,11 +919,29 @@
             <button class="btn btn-primary btn-small" onclick="openAddUserModal()">+ Tambah Pengguna</button>
           </div>
 
+          <div class="input-group" style="max-width: 520px; margin-bottom: 16px;">
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:end;">
+              <div style="min-width: 180px;">
+                <label>Filter Resot</label>
+                <input type="text" id="userFilterResot" placeholder="Contoh: 22">
+              </div>
+              <div style="min-width: 180px;">
+                <label>Filter No. Anggota</label>
+                <input type="text" id="userFilterNoAnggota" placeholder="Contoh: A001">
+              </div>
+              <div style="display:flex; gap:8px;">
+                <button class="btn btn-outline btn-small" type="button" onclick="applyUserFilters()">Terapkan</button>
+                <button class="btn btn-outline btn-small" type="button" onclick="resetUserFilters()">Reset</button>
+              </div>
+            </div>
+          </div>
+
           <div class="table-responsive">
             <table id="usersTable">
               <thead>
                 <tr>
                   <th>Username</th>
+                  <th>Password</th>
                   <th>Nama</th>
                   <th>Role</th>
                   <th>Resot / Sheet</th>
@@ -1286,7 +1304,7 @@
       } else if (fn === 'apiCreateNewLoan') {
         payload = Object.assign({ action: 'admin/new-loan', token: args[0] }, args[1]);
       } else if (fn === 'apiSearchNasabah') {
-        payload = { action: 'admin/search-nasabah', token: args[0], noAnggota: args[1] };
+        payload = { action: 'admin/search-nasabah', token: args[0], resot: args[1], noAnggota: args[2] };
       } else if (fn === 'apiToggleSetting') {
         payload = Object.assign({ action: 'admin/toggle-setting', token: args[0] }, args[1]);
       } else if (fn === 'apiGetNasabahSummary') {
@@ -1498,6 +1516,7 @@
 
     // Renew Tab
     async function searchRenewNasabah() {
+      const resot = document.getElementById('renewResotSelect').value;
       const noAnggota = document.getElementById('renewNoAnggotaInput').value.trim();
       const sec1 = document.getElementById('renewDetailsSection');
       const sec2 = document.getElementById('renewPreviewSection');
@@ -1506,6 +1525,11 @@
       sec2.style.display = 'none';
       document.getElementById('renewNewAmount').value = '';
 
+      if (!resot) {
+        showToast('Pilih Resot terlebih dahulu', 'error');
+        return;
+      }
+
       if (!noAnggota) {
         showToast('Masukkan No. Anggota terlebih dahulu', 'error');
         return;
@@ -1513,7 +1537,7 @@
 
       showLoading();
       try {
-        const res = await callApi('apiSearchNasabah', state.token, noAnggota);
+        const res = await callApi('apiSearchNasabah', state.token, resot, noAnggota);
         const data = (res && res.data) ? res.data : null;
         if (!data) {
           throw new Error('Data nasabah tidak ditemukan');
@@ -1589,41 +1613,72 @@
     }
 
     // Users Tab
+    function getFilteredUsers() {
+      const resotFilter = document.getElementById('userFilterResot').value.trim().toLowerCase();
+      const noAnggotaFilter = document.getElementById('userFilterNoAnggota').value.trim().toLowerCase();
+
+      return state.users.filter(u => {
+        const resotMatch = !resotFilter || String(u.sheetParam || '').toLowerCase().includes(resotFilter);
+        const noAnggotaMatch = !noAnggotaFilter || String(u.noAnggota || '').toLowerCase().includes(noAnggotaFilter);
+        return resotMatch && noAnggotaMatch;
+      });
+    }
+
+    function renderUsersTable(users) {
+      const tbody = document.getElementById('usersTableBody');
+      tbody.innerHTML = '';
+
+      if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="empty-state">Tidak ada pengguna yang sesuai filter</td></tr>';
+        return;
+      }
+
+      users.forEach(u => {
+        tbody.innerHTML += `
+          <tr>
+            <td data-label="Username">${u.username}</td>
+            <td data-label="Password">${u.password || '-'}</td>
+            <td data-label="Nama">${u.displayName}</td>
+            <td data-label="Role"><span class="badge ${u.role==='admin'?'badge-warning':'badge-success'}">${u.role}</span></td>
+            <td data-label="Resot / Sheet">${u.sheetParam || '-'}</td>
+            <td data-label="No. Anggota">${u.noAnggota || '-'}</td>
+            <td data-label="Lihat Detail">
+              <label class="toggle-switch">
+                <input type="checkbox" ${u.isShowDetail ? 'checked' : ''} onchange="toggleUserSetting('${u.id}', 'Is_Show_Detail', this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </td>
+            <td data-label="Lihat Tabungan">
+              <label class="toggle-switch">
+                <input type="checkbox" ${u.isShowTabungan ? 'checked' : ''} onchange="toggleUserSetting('${u.id}', 'Is_Show_Tabungan', this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </td>
+            <td data-label="Aksi">
+              <button class="btn btn-outline btn-small" onclick="openEditUserModal('${u.id}')">Edit</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function applyUserFilters() {
+      renderUsersTable(getFilteredUsers());
+    }
+
+    function resetUserFilters() {
+      document.getElementById('userFilterResot').value = '';
+      document.getElementById('userFilterNoAnggota').value = '';
+      renderUsersTable(state.users);
+    }
+
     async function loadUsers() {
       showLoading();
       try {
         const res = await callApi('apiGetUsers', state.token);
         const users = (res && res.data) ? res.data : [];
         state.users = users;
-        const tbody = document.getElementById('usersTableBody');
-        tbody.innerHTML = '';
-        
-        users.forEach(u => {
-          tbody.innerHTML += `
-            <tr>
-              <td data-label="Username">${u.username}</td>
-              <td data-label="Nama">${u.displayName}</td>
-              <td data-label="Role"><span class="badge ${u.role==='admin'?'badge-warning':'badge-success'}">${u.role}</span></td>
-              <td data-label="Resot / Sheet">${u.sheetParam || '-'}</td>
-              <td data-label="No. Anggota">${u.noAnggota || '-'}</td>
-              <td data-label="Lihat Detail">
-                <label class="toggle-switch">
-                  <input type="checkbox" ${u.isShowDetail ? 'checked' : ''} onchange="toggleUserSetting('${u.id}', 'Is_Show_Detail', this.checked)">
-                  <span class="toggle-slider"></span>
-                </label>
-              </td>
-              <td data-label="Lihat Tabungan">
-                <label class="toggle-switch">
-                  <input type="checkbox" ${u.isShowTabungan ? 'checked' : ''} onchange="toggleUserSetting('${u.id}', 'Is_Show_Tabungan', this.checked)">
-                  <span class="toggle-slider"></span>
-                </label>
-              </td>
-              <td data-label="Aksi">
-                <button class="btn btn-outline btn-small" onclick="openEditUserModal('${u.id}')">Edit</button>
-              </td>
-            </tr>
-          `;
-        });
+        renderUsersTable(getFilteredUsers());
       } catch (e) {
         showToast('Gagal memuat pengguna', 'error');
       } finally {
