@@ -168,7 +168,7 @@ function handleApiRequest(params, method) {
  * Handles user login.
  * @param {string} username - User username
  * @param {string} password - User password
- * @returns {Object} JSON response with token on success
+ * @returns {Object} JSON response with user data on success
  */
 function authenticateUser(username, password) {
   if (!username || !password) {
@@ -642,14 +642,17 @@ function apiUpdateUser(data) {
   if (targetRow === 0) return { success: false, error: 'User tidak ditemukan', code: 404 };
 
   var settingsSheet = getSheetByName(SHEET_SETTING);
-  settingsSheet.getRange(targetRow, 5).setValue(data.displayName); // Col 5: Display_Name
-  settingsSheet.getRange(targetRow, 6).setValue(data.role);        // Col 6: Role
-  settingsSheet.getRange(targetRow, 7).setValue(data.sheetParam || ''); // Col 7: Sheet_Param
-  settingsSheet.getRange(targetRow, 8).setValue(data.noAnggota || '');   // Col 8: No_Anggota
+  
+  // Update fields
+  settingsSheet.getRange(targetRow, 5).setValue(String(data.displayName || '')); // Col 5: Display_Name
+  settingsSheet.getRange(targetRow, 6).setValue(String(data.role || ''));        // Col 6: Role
+  settingsSheet.getRange(targetRow, 7).setValue(String(data.sheetParam || '')); // Col 7: Sheet_Param
+  settingsSheet.getRange(targetRow, 8).setValue(String(data.noAnggota || ''));   // Col 8: No_Anggota
 
+  // Update password if provided
   var newPassword = data.newPassword;
-  if (newPassword && newPassword.trim().length >= 6) {
-    var plainPassword = newPassword.trim();
+  if (newPassword && String(newPassword).trim().length >= 6) {
+    var plainPassword = String(newPassword).trim();
     var hashedPassword = hashSHA256(plainPassword);
     settingsSheet.getRange(targetRow, 3).setValue(hashedPassword); // Col 3: Password (hash)
     settingsSheet.getRange(targetRow, 4).setValue(plainPassword);  // Col 4: Password_Plain

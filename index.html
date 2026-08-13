@@ -1105,7 +1105,7 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
           <div class="input-group">
             <label>Username</label>
-            <input type="text" id="addUsername" required>
+            <input type="text" id="addUsername" required placeholder="Username untuk login">
           </div>
           <div class="input-group">
             <label id="addPasswordLabel">Password</label>
@@ -1197,7 +1197,8 @@
   <script>
     // --- STATE MANAGEMENT ---
     const state = {
-      token: null,
+      username: null,
+      password: null,
       user: null,
       currentPage: 'login',
       adminTab: 'batch',
@@ -1734,6 +1735,8 @@
       document.getElementById('addPasswordLabel').textContent = 'Password';
       document.getElementById('addPassword').required = true;
       document.getElementById('addUsername').value = '';
+      document.getElementById('addUsername').disabled = false;
+      document.getElementById('addUsername').required = true;
       document.getElementById('addPassword').value = '';
       document.getElementById('addDisplayName').value = '';
       document.getElementById('addRole').value = 'nasabah';
@@ -1753,6 +1756,8 @@
       document.getElementById('addPasswordLabel').textContent = 'Password (opsional)';
       document.getElementById('addPassword').required = false;
       document.getElementById('addUsername').value = user.username || '';
+      document.getElementById('addUsername').disabled = true;
+      document.getElementById('addUsername').required = false;
       document.getElementById('addPassword').value = '';
       document.getElementById('addDisplayName').value = user.displayName || '';
       document.getElementById('addRole').value = user.role || 'nasabah';
@@ -1770,8 +1775,6 @@
     async function handleAddUser(e) {
       e.preventDefault();
       const payload = {
-        username: document.getElementById('addUsername').value,
-        password: document.getElementById('addPassword').value,
         displayName: document.getElementById('addDisplayName').value,
         role: document.getElementById('addRole').value,
         sheetParam: document.getElementById('addSheetParam').value,
@@ -1780,10 +1783,13 @@
       
       if (state.editingUserId) {
         payload.userId = state.editingUserId;
-        if (payload.password) {
-          payload.newPassword = payload.password;
+        const password = document.getElementById('addPassword').value;
+        if (password) {
+          payload.newPassword = password;
         }
-        delete payload.password;
+      } else {
+        payload.username = document.getElementById('addUsername').value;
+        payload.password = document.getElementById('addPassword').value;
       }
       
       closeModal('addUserModal');
