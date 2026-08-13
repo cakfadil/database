@@ -595,7 +595,7 @@ function apiCreateNewLoan(token, data) {
 
   if (!userFound) {
     var newUserId = generateId('U');
-    var defaultUsername = noAnggota.toLowerCase();
+    var defaultUsername = nama.toLowerCase().replace(/\s+/g, '');
     var defaultPasswordPlain = 'pass123';
     var defaultPasswordHash = hashSHA256(defaultPasswordPlain);
     settingsSheet.appendRow([

@@ -70,6 +70,7 @@
     .text-gradient {
       background: var(--gradient-primary);
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
       display: inline-block;
     }
@@ -77,6 +78,7 @@
     .text-gradient-accent {
       background: var(--gradient-accent);
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
       display: inline-block;
     }
@@ -299,7 +301,7 @@
       border: 1px solid var(--glass-border);
     }
     .btn-outline:hover { background: rgba(255,255,255,0.05); }
-    .btn-small { padding: 4px 8px; font-size: 0.5rem; width: auto; }
+    .btn-small { padding: 4px 8px; font-size: 0.75rem; width: auto; }
 
     /* Login Page */
     #loginPage {
@@ -372,7 +374,7 @@
       gap: 16px;
     }
     .user-info {
-      text-align: right;
+      text-align: left;
       display: flex;
       flex-direction: column;
     }
@@ -707,7 +709,7 @@
       }
       .tabs-nav { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
       .tab-btn { width: auto; min-width: 120px; white-space: nowrap; }
-      .subtabs-nav { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
+      .subtabs-nav { flex-wrap: nowrap; }
       .subtabs-nav .tab-btn { width: auto; min-width: 110px; white-space: nowrap; }
       .dashboard-card { padding: 16px; }
       .bottom-bar { flex-direction: column; gap: 16px; text-align: center; margin: 0 -16px -16px; padding: 12px 16px; }
@@ -720,7 +722,7 @@
       th { font-size: 0.6rem; padding: 6px 8px; }
       .table-input { width: 80px; padding: 6px 8px; font-size: 0.5rem; }
       .input-group label { font-size: 0.8rem; }
-      input, select { padding: 12px 14px; font-size: 0.95rem; }
+      input, select { padding: 12px 14px; font-size: 0.75rem; }
       [style*="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;"] {
         grid-template-columns: 1fr !important;
       }
@@ -796,7 +798,7 @@
           <span class="user-name" id="adminDisplayName">Administrator</span>
           <span class="user-role">ADMIN</span>
         </div>
-        <button class="nav-logout" onclick="handleLogout()" title="Keluar">🚪</button>
+        <button class="nav-logout" onclick="handleLogout()" title="Keluar">➜]</button>
       </div>
     </nav>
 
@@ -811,9 +813,8 @@
       <div id="tab-batch" class="tab-content active">
         <div class="dashboard-card glass">
           <h2 class="card-title">Input Angsuran Masal</h2>
-          
-          <div class="input-group" style="max-width: 300px;">
-            <label>Pilih Resot</label>
+          <!-- Pilih Resot terlebih dahulu untuk memasukan angsuran -->
+          <div class="input-group">
             <select id="batchResotSelect" onchange="loadBatchNasabah()">
               <option value="">-- Pilih Resot --</option>
             </select>
@@ -847,31 +848,30 @@
         <div class="dashboard-card glass">
           <h2 class="card-title">Pinjaman</h2>
 
-          <div class="subtabs-nav">
+          <div class="subtabs-nav" style="display: grid; grid-template-columns: 1fr 1fr; gap:8px;">
             <button class="tab-btn active" onclick="switchPinjamanSubTab('new')">➕ Baru</button>
             <button class="tab-btn" onclick="switchPinjamanSubTab('renew')">🔄 Pelunasan</button>
           </div>
 
           <div id="pinjaman-new" class="pinjaman-subtab active">
-            <div class="input-group" style="max-width: 400px;">
-              <label>Pilih Resot</label>
+            <!-- Pilih Resot untuk Nasabah baru -->
+            <div class="input-group">
               <select id="newLoanResotSelect">
                 <option value="">-- Pilih Resot --</option>
               </select>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px;">
+              <!-- Input No. Anggota Baru -->
               <div class="input-group">
-                <label>No. Anggota</label>
-                <input type="text" id="newLoanNoAnggota" placeholder="Contoh: A001">
+                <input type="text" id="newLoanNoAnggota" placeholder="No. Anggota">
               </div>
+              <!-- Input Nama Nasabah Baru -->
               <div class="input-group">
-                <label>Nama Nasabah</label>
-                <input type="text" id="newLoanNama" placeholder="Contoh: Budi Santoso">
+                <input type="text" id="newLoanNama" placeholder="Nama Nasabah">
               </div>
             </div>
-            <div class="input-group" style="max-width: 300px;">
-              <label>Nominal Pinjaman Baru</label>
-              <input type="text" id="newLoanAmount" placeholder="Contoh: 1000000" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+            <div class="input-group">
+              <input type="text" id="newLoanAmount" placeholder="Nominal" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
             </div>
             <div style="margin-top: 10px;">
               <button class="btn btn-primary btn-small" style="width: auto;" onclick="createNewLoan()">Buat Pinjaman Baru</button>
@@ -879,15 +879,15 @@
           </div>
 
           <div id="pinjaman-renew" class="pinjaman-subtab" style="display:none;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <!-- Pilih Resot Pelunasan -->
               <div class="input-group">
-                <label>Pilih Resot</label>
                 <select id="renewResotSelect">
                   <option value="">-- Pilih Resot --</option>
                 </select>
               </div>
               <div class="input-group">
-                <label>Pencarian No Anggota</label>
+                <!-- Pencarian No Anggota -->
                 <div style="display:flex; gap:8px;">
                   <input type="text" id="renewNoAnggotaInput" placeholder="Masukkan No Anggota">
                   <button class="btn btn-outline btn-small" type="button" onclick="searchRenewNasabah()" style="width:auto; min-width:90px;">Cari</button>
@@ -912,7 +912,7 @@
                 </div>
               </div>
 
-              <div class="input-group" style="max-width: 400px;">
+              <div class="input-group">
                 <label>Nominal Pinjaman Baru</label>
                 <input type="text" id="renewNewAmount" placeholder="Contoh: 1000000" oninput="this.value = this.value.replace(/[^0-9]/g, ''); calculateRenewPreview()">
               </div>
@@ -947,17 +947,17 @@
             <button class="btn btn-primary btn-small" onclick="openAddUserModal()">+ Tambah Pengguna</button>
           </div>
 
-          <div class="input-group" style="max-width: 520px; margin-bottom: 16px;">
-            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:end;">
-              <div style="min-width: 180px;">
-                <label>Filter Resot</label>
-                <input type="text" id="userFilterResot" placeholder="Contoh: 22">
+          <div class="input-group" style="margin-bottom: 16px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap:12px; flex-wrap:wrap; align-items:end;">
+              <div style="min-width: 90px;">
+                <!-- Filter Resot -->
+                <input type="text" id="userFilterResot" placeholder="Filter Resot">
               </div>
-              <div style="min-width: 180px;">
-                <label>Filter No. Anggota</label>
-                <input type="text" id="userFilterNoAnggota" placeholder="Contoh: A001">
+              <div style="min-width: 90px;">
+                <!-- Filter No. Anggota -->
+                <input type="text" id="userFilterNoAnggota" placeholder="No. Anggota">
               </div>
-              <div style="display:flex; gap:8px;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap:8px;">
                 <button class="btn btn-outline btn-small" type="button" onclick="applyUserFilters()">Terapkan</button>
                 <button class="btn btn-outline btn-small" type="button" onclick="resetUserFilters()">Reset</button>
               </div>
@@ -1072,15 +1072,15 @@
         </h2>
         <div id="changePasswordForm" style="display: none; margin-top: 20px;">
           <form onsubmit="handleChangePassword(event)">
-            <div class="input-group" style="max-width: 400px;">
+            <div class="input-group">
               <label>Password Lama</label>
               <input type="password" id="cpOld" required>
             </div>
-            <div class="input-group" style="max-width: 400px;">
+            <div class="input-group">
               <label>Password Baru (min 6 karakter)</label>
               <input type="password" id="cpNew" required minlength="6">
             </div>
-            <div class="input-group" style="max-width: 400px;">
+            <div class="input-group">
               <label>Konfirmasi Password Baru</label>
               <input type="password" id="cpConfirm" required minlength="6">
             </div>
