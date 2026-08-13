@@ -642,13 +642,12 @@ function apiUpdateUser(data) {
   if (targetRow === 0) return { success: false, error: 'User tidak ditemukan', code: 404 };
 
   var settingsSheet = getSheetByName(SHEET_SETTING);
-  settingsSheet.getRange(targetRow, 2).setValue(String(data.username || '').trim()); // Col 2: Username
   settingsSheet.getRange(targetRow, 5).setValue(data.displayName); // Col 5: Display_Name
   settingsSheet.getRange(targetRow, 6).setValue(data.role);        // Col 6: Role
   settingsSheet.getRange(targetRow, 7).setValue(data.sheetParam || ''); // Col 7: Sheet_Param
   settingsSheet.getRange(targetRow, 8).setValue(data.noAnggota || '');   // Col 8: No_Anggota
 
-  var newPassword = data.password || data.newPassword;
+  var newPassword = data.newPassword;
   if (newPassword && newPassword.trim().length >= 6) {
     var plainPassword = newPassword.trim();
     var hashedPassword = hashSHA256(plainPassword);
