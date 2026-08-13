@@ -530,62 +530,75 @@ function apiToggleSetting(data) {
 }
 
 /**
- * Creates a new loan (Pinjaman Baru).
- * @param {Object} data - { resot, noAnggota, nama, pinjamanBaru }
+ * Creates a new loan and optionally creates a new user.
+ * @param {Object} data - { resot, noAnggota, nama, pinjamanBaru, tanggal }
  * @returns {Object} JSON response
  */
 function apiCreateNewLoan(data) {
-  if (!data.resot || !data.noAnggota || !data.nama || !data.pinjamanBaru) {
-    return { success: false, error: 'Data resot, no anggota, nama, dan nominal wajib diisi', code: 400 };
-  }
-  var pinjamanBaru = Number(data.pinjamanBaru);
-  if (isNaN(pinjamanBaru) || pinjamanBaru <= 0) {
-    return { success: false, error: 'Nominal pinjaman baru tidak valid', code: 400 };
-  }
+if (!data.resot || !data.noAnggota || !data.nama || !data.pinjamanBaru) {
+return { success: false, error: 'Data resot, no anggota, nama, dan nominal wajib diisi', code: 400 };
+}
+var pinjamanBaru = Number(data.pinjamanBaru);
+if (isNaN(pinjamanBaru) || pinjamanBaru <= 0) {
+return { success: false, error: 'Nominal pinjaman baru tidak valid', code: 400 };
+}
 
-  var resot = normalizeResot(data.resot);
-  var noAnggota = String(data.noAnggota).trim();
-  var nama = String(data.nama).trim();
+var resot = normalizeResot(data.resot);
+var noAnggota = String(data.noAnggota).trim();
+var nama = String(data.nama).trim();
+  
+// Use provided tanggal or default to today
+var inputTanggal = data.tanggal ? String(data.tanggal).trim() : formatDate(new Date());
 
-  var loans = getSheetData(SHEET_PINJAMAN);
-  for (var i = 0; i < loans.length; i++) {
-    if (String(loans[i].No_Anggota).trim() === noAnggota && loans[i].Status === 'Berjalan') {
-      return { success: false, error: 'Nasabah dengan No. Anggota ini masih memiliki pinjaman aktif', code: 400 };
-    }
-  }
+var loans = getSheetData(SHEET_PINJAMAN);
+for (var i = 0; i < loans.length; i++) {
+if (String(loans[i].No_Anggota).trim() === noAnggota && loans[i].Status === 'Berjalan') {
+return { success: false, error: 'Nasabah dengan No. Anggota ini masih memiliki pinjaman aktif', code: 400 };
+}
+}
 
-  var today = formatDate(new Date());
-  var newLoanId = generateId('P');
-  var saldoBaru = pinjamanBaru * 1.2;
-  var tabunganAwal = pinjamanBaru * 0.05;
+var newLoanId = generateId('P');
+var saldoBaru = pinjamanBaru * 1.2;
+var tabunganAwal = pinjamanBaru * 0.05;
+  
+// Determine status based on tanggal (macet if 4 months ago)
+var status = 'Berjalan';
+if (inputTanggal) {
+var loanDate = new Date(inputTanggal);
+var today = new Date();
+var monthsDiff = (today.getFullYear() - loanDate.getFullYear()) * 12 + (today.getMonth() - loanDate.getMonth());
+if (monthsDiff >= 4) {
+status = 'Macet';
+}
+}
 
-  var pinjamanSheet = getSheetByName(SHEET_PINJAMAN);
-  pinjamanSheet.appendRow([
-    newLoanId, resot, today, noAnggota, nama, pinjamanBaru, saldoBaru, tabunganAwal, 'Berjalan'
-  ]);
+var pinjamanSheet = getSheetByName(SHEET_PINJAMAN);
+pinjamanSheet.appendRow([
+newLoanId, resot, inputTanggal, noAnggota, nama, pinjamanBaru, saldoBaru, tabunganAwal, status
+]);
 
-  var settingsSheet = getSheetByName(SHEET_SETTING);
-  var users = getSheetData(SHEET_SETTING);
-  var userFound = false;
-  for (var j = 0; j < users.length; j++) {
-    if (String(users[j].No_Anggota).trim() === noAnggota) {
-      settingsSheet.getRange(users[j]._rowIndex, 10).setValue(newLoanId);
-      userFound = true;
-      break;
-    }
-  }
+var settingsSheet = getSheetByName(SHEET_SETTING);
+var users = getSheetData(SHEET_SETTING);
+var userFound = false;
+for (var j = 0; j < users.length; j++) {
+if (String(users[j].No_Anggota).trim() === noAnggota) {
+settingsSheet.getRange(users[j]._rowIndex, 10).setValue(newLoanId);
+userFound = true;
+break;
+}
+}
 
-  if (!userFound) {
-    var newUserId = generateId('U');
-    var defaultUsername = nama.toLowerCase().replace(/\s+/g, '');
-    var defaultPasswordPlain = 'pass123';
-    var defaultPasswordHash = hashSHA256(defaultPasswordPlain);
-    settingsSheet.appendRow([
-      newUserId, defaultUsername, defaultPasswordHash, defaultPasswordPlain, nama, 'nasabah', resot, noAnggota, true, newLoanId, true
-    ]);
-  }
+if (!userFound) {
+var newUserId = generateId('U');
+var defaultUsername = nama.toLowerCase().replace(/\s+/g, '');
+var defaultPasswordPlain = 'pass123';
+var defaultPasswordHash = hashSHA256(defaultPasswordPlain);
+settingsSheet.appendRow([
+newUserId, defaultUsername, defaultPasswordHash, defaultPasswordPlain, nama, 'nasabah', resot, noAnggota, true, newLoanId, true
+]);
+}
 
-  return { success: true, newLoanId: newLoanId, message: 'Pinjaman baru berhasil dibuat' };
+return { success: true, newLoanId: newLoanId, message: 'Pinjaman baru berhasil dibuat' };
 }
 
 /**
@@ -693,15 +706,18 @@ function apiGetNasabahSummary(user) {
     var loans = getSheetData(SHEET_PINJAMAN);
     for (var j = 0; j < loans.length; j++) {
       if (loans[j].ID_Pinjaman === userData.Current_Loan_ID) {
-        currentLoan = {
-          idPinjaman: loans[j].ID_Pinjaman,
-          resot: normalizeResot(loans[j].Resot),
-          tanggal: formatDate(loans[j].Tanggal),
-          pinjaman: loans[j].Pinjaman,
-          saldo: loans[j].Saldo,
-          tabungan: isShowTabungan ? loans[j].Tabungan : null,
-          status: loans[j].Status
-        };
+        // Don't show loans with status "Diperbarui"
+        if (String(loans[j].Status).trim() !== 'Diperbarui') {
+          currentLoan = {
+            idPinjaman: loans[j].ID_Pinjaman,
+            resot: normalizeResot(loans[j].Resot),
+            tanggal: formatDate(loans[j].Tanggal),
+            pinjaman: loans[j].Pinjaman,
+            saldo: loans[j].Saldo,
+            tabungan: isShowTabungan ? loans[j].Tabungan : null,
+            status: loans[j].Status
+          };
+        }
         break;
       }
     }

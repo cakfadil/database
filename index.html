@@ -720,7 +720,7 @@
       table { font-size: 0.5rem; min-width: 300px; }
       th, td { padding: 6px 4px; }
       th { font-size: 0.6rem; padding: 6px 8px; }
-      .table-input { width: 80px; padding: 6px 8px; font-size: 0.5rem; }
+      .table-input { width: 100%; padding: 6px 8px; font-size: 0.5rem; }
       .input-group label { font-size: 0.8rem; }
       input, select { padding: 12px 14px; font-size: 0.75rem; }
       [style*="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;"] {
@@ -817,6 +817,11 @@
           <div class="input-group">
             <select id="batchResotSelect" onchange="loadBatchNasabah()">
               <option value="">-- Pilih Resot --</option>
+              <option value="22">22</option>
+              <option value="23">23</option>
+              <option value="24">24</option>
+              <option value="25">25</option>
+              <option value="26">26</option>
             </select>
           </div>
 
@@ -858,6 +863,11 @@
             <div class="input-group">
               <select id="newLoanResotSelect">
                 <option value="">-- Pilih Resot --</option>
+                <option value="22">22</option>
+                <option value="23">23</option>
+                <option value="24">24</option>
+                <option value="25">25</option>
+                <option value="26">26</option>
               </select>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px;">
@@ -869,6 +879,10 @@
               <div class="input-group">
                 <input type="text" id="newLoanNama" placeholder="Nama Nasabah">
               </div>
+            </div>
+            <!-- Input Tanggal Pinjaman -->
+            <div class="input-group">
+              <input type="date" id="newLoanTanggal" placeholder="Tanggal Pinjaman">
             </div>
             <div class="input-group">
               <input type="text" id="newLoanAmount" placeholder="Nominal" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
@@ -884,6 +898,11 @@
               <div class="input-group">
                 <select id="renewResotSelect">
                   <option value="">-- Pilih Resot --</option>
+                  <option value="22">22</option>
+                  <option value="23">23</option>
+                  <option value="24">24</option>
+                  <option value="25">25</option>
+                  <option value="26">26</option>
                 </select>
               </div>
               <div class="input-group">
@@ -1441,24 +1460,9 @@
     async function initAdmin() {
       showLoading();
       try {
-        const res = await callApi('apiGetResotList');
-        state.resotList = (res && res.data) ? res.data : [];
-        
-        const sel1 = document.getElementById('batchResotSelect');
-        const sel2 = document.getElementById('renewResotSelect');
-        const sel3 = document.getElementById('newLoanResotSelect');
-        
-        sel1.innerHTML = '<option value="">-- Pilih Resot --</option>';
-        sel2.innerHTML = '<option value="">-- Pilih Resot --</option>';
-        sel3.innerHTML = '<option value="">-- Pilih Resot --</option>';
-        
-        state.resotList.forEach(r => {
-          sel1.innerHTML += `<option value="${r}">${r}</option>`;
-          sel2.innerHTML += `<option value="${r}">${r}</option>`;
-          sel3.innerHTML += `<option value="${r}">${r}</option>`;
-        });
+        // Resot dropdowns are now static, no need to fetch from API
       } catch (e) {
-        showToast('Gagal memuat data resot', 'error');
+        showToast('Gagal memuat data admin', 'error');
       } finally {
         hideLoading();
       }
@@ -1816,6 +1820,7 @@
       const resot = document.getElementById('newLoanResotSelect').value;
       const noAnggota = document.getElementById('newLoanNoAnggota').value.trim();
       const nama = document.getElementById('newLoanNama').value.trim();
+      const tanggal = document.getElementById('newLoanTanggal').value;
       const amount = document.getElementById('newLoanAmount').value.trim();
 
       if (!resot || !noAnggota || !nama || !amount) {
@@ -1825,11 +1830,12 @@
 
       showLoading();
       try {
-        await callApi('apiCreateNewLoan', { resot, noAnggota, nama, pinjamanBaru: amount });
+        await callApi('apiCreateNewLoan', { resot, noAnggota, nama, pinjamanBaru: amount, tanggal });
         showToast('Pinjaman baru berhasil dibuat', 'success');
         document.getElementById('newLoanResotSelect').value = '';
         document.getElementById('newLoanNoAnggota').value = '';
         document.getElementById('newLoanNama').value = '';
+        document.getElementById('newLoanTanggal').value = '';
         document.getElementById('newLoanAmount').value = '';
       } catch (e) {
         showToast(e.message || 'Gagal membuat pinjaman baru', 'error');
