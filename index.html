@@ -1315,31 +1315,31 @@
       if (fn === 'apiLogin') {
         payload = { action: 'login', username: args[0], password: args[1] };
       } else if (fn === 'apiGetResotList') {
-        payload = { action: 'admin/resot-list', token: args[0] };
+        payload = { action: 'admin/resot-list', username: state.username, password: state.password };
       } else if (fn === 'apiGetNasabahByResot') {
-        payload = { action: 'admin/nasabah-by-resot', token: args[0], resot: args[1] };
+        payload = { action: 'admin/nasabah-by-resot', username: state.username, password: state.password, resot: args[0] };
       } else if (fn === 'apiBatchPayments') {
-        payload = { action: 'admin/batch-payments', token: args[0], resot: args[1], payments: args[2] };
+        payload = { action: 'admin/batch-payments', username: state.username, password: state.password, resot: args[0], payments: args[1] };
       } else if (fn === 'apiRenewLoan') {
-        payload = Object.assign({ action: 'admin/renew', token: args[0] }, args[1]);
+        payload = Object.assign({ action: 'admin/renew', username: state.username, password: state.password }, args[0]);
       } else if (fn === 'apiGetUsers') {
-        payload = { action: 'admin/users', token: args[0] };
+        payload = { action: 'admin/users', username: state.username, password: state.password };
       } else if (fn === 'apiAddUser') {
-        payload = Object.assign({ action: 'admin/add-user', token: args[0] }, args[1]);
+        payload = Object.assign({ action: 'admin/add-user', username: state.username, password: state.password }, args[0]);
       } else if (fn === 'apiUpdateUser') {
-        payload = Object.assign({ action: 'admin/update-user', token: args[0] }, args[1]);
+        payload = Object.assign({ action: 'admin/update-user', username: state.username, password: state.password }, args[0]);
       } else if (fn === 'apiCreateNewLoan') {
-        payload = Object.assign({ action: 'admin/new-loan', token: args[0] }, args[1]);
+        payload = Object.assign({ action: 'admin/new-loan', username: state.username, password: state.password }, args[0]);
       } else if (fn === 'apiSearchNasabah') {
-        payload = { action: 'admin/search-nasabah', token: args[0], resot: args[1], noAnggota: args[2] };
+        payload = { action: 'admin/search-nasabah', username: state.username, password: state.password, resot: args[0], noAnggota: args[1] };
       } else if (fn === 'apiToggleSetting') {
-        payload = Object.assign({ action: 'admin/toggle-setting', token: args[0] }, args[1]);
+        payload = Object.assign({ action: 'admin/toggle-setting', username: state.username, password: state.password }, args[0]);
       } else if (fn === 'apiGetNasabahSummary') {
-        payload = { action: 'nasabah/summary', token: args[0] };
+        payload = { action: 'nasabah/summary', username: state.username, password: state.password };
       } else if (fn === 'apiChangePassword') {
-        payload = { action: 'nasabah/change-password', token: args[0], oldPassword: args[1], newPassword: args[2] };
+        payload = { action: 'nasabah/change-password', username: state.username, password: state.password, oldPassword: args[0], newPassword: args[1] };
       } else {
-        payload = Object.assign({ action: fn }, args[0] || {});
+        payload = Object.assign({ action: fn, username: state.username, password: state.password }, args[0] || {});
       }
 
       try {
@@ -1356,7 +1356,7 @@
         return res;
       } catch (err) {
         if (err.message && (err.message.includes('Failed to fetch') || err.name === 'TypeError')) {
-          throw new Error('Gagal terhubung ke Apps Script. Periksa Web App URL atau pastikan deployment bertipe "Anyone"');
+          throw new Error('Gagal terhubung ke server. Periksa koneksi internet atau URL API.');
         }
         throw err;
       }
@@ -1373,11 +1373,13 @@
       showLoading();
       try {
         const res = await callApi('apiLogin', u, p);
-        if (res && res.token) {
-          state.token = res.token;
+        if (res && res.success) {
+          state.username = u;
+          state.password = p;
           state.user = res.user;
-          sessionStorage.setItem('token', state.token);
-          sessionStorage.setItem('user', JSON.stringify(state.user));
+          localStorage.setItem('username', state.username);
+          localStorage.setItem('password', state.password);
+          localStorage.setItem('user', JSON.stringify(state.user));
           
           showToast('Login berhasil', 'success');
           routeUser();
@@ -1393,8 +1395,11 @@
     }
 
     function handleLogout() {
-      sessionStorage.clear();
-      state.token = null;
+      localStorage.removeItem('username');
+      localStorage.removeItem('password');
+      localStorage.removeItem('user');
+      state.username = null;
+      state.password = null;
       state.user = null;
       document.getElementById('loginForm').reset();
       showPage('loginPage');
@@ -1435,7 +1440,7 @@
     async function initAdmin() {
       showLoading();
       try {
-        const res = await callApi('apiGetResotList', state.token);
+        const res = await callApi('apiGetResotList');
         state.resotList = (res && res.data) ? res.data : [];
         
         const sel1 = document.getElementById('batchResotSelect');
@@ -1470,7 +1475,7 @@
 
       showLoading();
       try {
-        const res = await callApi('apiGetNasabahByResot', state.token, resot);
+        const res = await callApi('apiGetNasabahByResot', resot);
         state.batchData = (res && res.data) ? res.data : [];
         
         if (state.batchData.length === 0) {
@@ -1531,7 +1536,7 @@
       const resot = document.getElementById('batchResotSelect').value;
       showLoading();
       try {
-        await callApi('apiBatchPayments', state.token, resot, payments);
+        await callApi('apiBatchPayments', resot, payments);
         showToast(`${payments.length} pembayaran berhasil diproses`, 'success');
         loadBatchNasabah(); // Refresh
       } catch(e) {
@@ -1564,7 +1569,7 @@
 
       showLoading();
       try {
-        const res = await callApi('apiSearchNasabah', state.token, resot, noAnggota);
+        const res = await callApi('apiSearchNasabah', resot, noAnggota);
         const data = (res && res.data) ? res.data : null;
         if (!data) {
           throw new Error('Data nasabah tidak ditemukan');
@@ -1625,7 +1630,7 @@
       closeModal('confirmRenewModal');
       showLoading();
       try {
-        await callApi('apiRenewLoan', state.token, { idPinjaman: state.renewSelectedLoanId, pinjamanBaru: amount });
+        await callApi('apiRenewLoan', { idPinjaman: state.renewSelectedLoanId, pinjamanBaru: amount });
         showToast('Pinjaman berhasil diperbarui', 'success');
         document.getElementById('renewNoAnggotaInput').value = '';
         state.renewSelectedLoanId = null;
@@ -1701,7 +1706,7 @@
     async function loadUsers() {
       showLoading();
       try {
-        const res = await callApi('apiGetUsers', state.token);
+        const res = await callApi('apiGetUsers');
         const users = (res && res.data) ? res.data : [];
         state.users = users;
         renderUsersTable(getFilteredUsers());
@@ -1714,7 +1719,7 @@
 
     async function toggleUserSetting(userId, field, value) {
       try {
-        await callApi('apiToggleSetting', state.token, { userId, field, value });
+        await callApi('apiToggleSetting', { userId, field, value });
         showToast('Pengaturan disimpan', 'success');
       } catch(e) {
         showToast('Gagal menyimpan pengaturan', 'error');
@@ -1783,10 +1788,10 @@
       showLoading();
       try {
         if (state.editingUserId) {
-          await callApi('apiUpdateUser', state.token, payload);
+          await callApi('apiUpdateUser', payload);
           showToast('Pengguna berhasil diperbarui', 'success');
         } else {
-          await callApi('apiAddUser', state.token, payload);
+          await callApi('apiAddUser', payload);
           showToast('Pengguna berhasil ditambahkan', 'success');
         }
         loadUsers();
@@ -1812,7 +1817,7 @@
 
       showLoading();
       try {
-        await callApi('apiCreateNewLoan', state.token, { resot, noAnggota, nama, pinjamanBaru: amount });
+        await callApi('apiCreateNewLoan', { resot, noAnggota, nama, pinjamanBaru: amount });
         showToast('Pinjaman baru berhasil dibuat', 'success');
         document.getElementById('newLoanResotSelect').value = '';
         document.getElementById('newLoanNoAnggota').value = '';
@@ -1829,7 +1834,7 @@
     async function initNasabah() {
       showLoading();
       try {
-        const res = await callApi('apiGetNasabahSummary', state.token);
+        const res = await callApi('apiGetNasabahSummary');
         const data = res.data;
         
         if (!data || !data.loan) {
@@ -1915,7 +1920,7 @@
 
       showLoading();
       try {
-        await callApi('apiChangePassword', state.token, oldP, newP);
+        await callApi('apiChangePassword', oldP, newP);
         showToast('Password berhasil diubah', 'success');
         document.getElementById('cpOld').value = '';
         document.getElementById('cpNew').value = '';
@@ -1931,10 +1936,12 @@
 
     // --- INIT ---
     window.onload = function() {
-      const savedToken = sessionStorage.getItem('token');
-      const savedUser = sessionStorage.getItem('user');
-      if (savedToken && savedUser) {
-        state.token = savedToken;
+      const savedUsername = localStorage.getItem('username');
+      const savedPassword = localStorage.getItem('password');
+      const savedUser = localStorage.getItem('user');
+      if (savedUsername && savedPassword && savedUser) {
+        state.username = savedUsername;
+        state.password = savedPassword;
         state.user = JSON.parse(savedUser);
         routeUser();
       }

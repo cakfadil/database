@@ -4,7 +4,7 @@
 var SHEET_SETTING = 'Setting';
 var SHEET_TRANSAKSI = 'Transaksi';
 var SHEET_PINJAMAN = 'Pinjaman';
-var SESSION_DURATION = 21600; // 6 hours
+// Token system removed - using direct username/password authentication
 
 // ==========================================
 // SECTION 2: UTILITY FUNCTIONS
@@ -26,35 +26,8 @@ function hashSHA256(input) {
   return txtHash.toLowerCase();
 }
 
-function generateToken() {
-  return Utilities.getUuid();
-}
-
 function generateId(prefix) {
   return prefix + '_' + Utilities.getUuid().substring(0, 8).toUpperCase();
-}
-
-function storeSession(token, data) {
-  CacheService.getScriptCache().put('sess_' + token, JSON.stringify(data), SESSION_DURATION);
-}
-
-function getSession(token) {
-  if (!token) return null;
-  var data = CacheService.getScriptCache().get('sess_' + token);
-  if (data) {
-    try {
-      return JSON.parse(data);
-    } catch (e) {
-      return null;
-    }
-  }
-  return null;
-}
-
-function destroySession(token) {
-  if (token) {
-    CacheService.getScriptCache().remove('sess_' + token);
-  }
 }
 
 function getSheetByName(name) {
@@ -134,47 +107,48 @@ function handleApiRequest(params, method) {
       return jsonOutput(apiLogin(params.username, params.password));
     }
 
-    var token = params.token;
-    var session = getSession(token);
-    if (!session) {
-      return jsonOutput({ success: false, error: 'Unauthorized. Invalid or expired token.', code: 401 });
+    var username = params.username;
+    var password = params.password;
+    var user = authenticateUser(username, password);
+    if (!user) {
+      return jsonOutput({ success: false, error: 'Unauthorized. Invalid username or password.', code: 401 });
     }
 
     if (params.action.indexOf('admin/') === 0) {
-      if (session.role !== 'admin') {
+      if (user.role !== 'admin') {
         return jsonOutput({ success: false, error: 'Forbidden. Admin access required.', code: 403 });
       }
       
       switch (params.action) {
         case 'admin/resot-list':
-          return jsonOutput(apiGetResotList(token));
+          return jsonOutput(apiGetResotList());
         case 'admin/nasabah-by-resot':
-          return jsonOutput(apiGetNasabahByResot(token, params.resot));
+          return jsonOutput(apiGetNasabahByResot(params.resot));
         case 'admin/batch-payments':
-          return jsonOutput(apiBatchPayments(token, params.resot, params.payments));
+          return jsonOutput(apiBatchPayments(params.resot, params.payments));
         case 'admin/renew':
-          return jsonOutput(apiRenewLoan(token, params));
+          return jsonOutput(apiRenewLoan(params));
         case 'admin/new-loan':
-          return jsonOutput(apiCreateNewLoan(token, params));
+          return jsonOutput(apiCreateNewLoan(params));
         case 'admin/search-nasabah':
-          return jsonOutput(apiSearchNasabah(token, params.resot, params.noAnggota));
+          return jsonOutput(apiSearchNasabah(params.resot, params.noAnggota));
         case 'admin/users':
-          return jsonOutput(apiGetUsers(token));
+          return jsonOutput(apiGetUsers());
         case 'admin/add-user':
-          return jsonOutput(apiAddUser(token, params));
+          return jsonOutput(apiAddUser(params));
         case 'admin/update-user':
-          return jsonOutput(apiUpdateUser(token, params));
+          return jsonOutput(apiUpdateUser(params));
         case 'admin/toggle-setting':
-          return jsonOutput(apiToggleSetting(token, params));
+          return jsonOutput(apiToggleSetting(params));
         default:
           return jsonOutput({ success: false, error: 'Unknown admin action', code: 400 });
       }
     } else if (params.action.indexOf('nasabah/') === 0) {
       switch (params.action) {
         case 'nasabah/summary':
-          return jsonOutput(apiGetNasabahSummary(token));
+          return jsonOutput(apiGetNasabahSummary(user));
         case 'nasabah/change-password':
-          return jsonOutput(apiChangePassword(token, params.oldPassword, params.newPassword));
+          return jsonOutput(apiChangePassword(user, params.oldPassword, params.newPassword));
         default:
           return jsonOutput({ success: false, error: 'Unknown nasabah action', code: 400 });
       }
@@ -196,6 +170,35 @@ function handleApiRequest(params, method) {
  * @param {string} password - User password
  * @returns {Object} JSON response with token on success
  */
+function authenticateUser(username, password) {
+  if (!username || !password) {
+    return null;
+  }
+  
+  var cleanUsername = String(username).trim().toLowerCase();
+  var cleanPassword = String(password).trim();
+  var users = getSheetData(SHEET_SETTING);
+  var hashedPass = hashSHA256(cleanPassword);
+  
+  for (var i = 0; i < users.length; i++) {
+    var user = users[i];
+    var storedPassword = String(user.Password || '').trim();
+    var passwordMatches = (storedPassword === cleanPassword) || (storedPassword === hashedPass);
+    if (String(user.Username).trim().toLowerCase() === cleanUsername && passwordMatches) {
+      return {
+        userId: user.ID,
+        username: user.Username,
+        displayName: user.Display_Name,
+        role: user.Role,
+        sheetParam: user.Sheet_Param,
+        noAnggota: user.No_Anggota,
+        currentLoanId: user.Current_Loan_ID
+      };
+    }
+  }
+  return null;
+}
+
 function apiLogin(username, password) {
   if (!username || !password) {
     return { success: false, error: 'Username and password are required', code: 400 };
@@ -211,21 +214,8 @@ function apiLogin(username, password) {
     var storedPassword = String(user.Password || '').trim();
     var passwordMatches = (storedPassword === cleanPassword) || (storedPassword === hashedPass);
     if (String(user.Username).trim().toLowerCase() === cleanUsername && passwordMatches) {
-      var token = generateToken();
-      var sessionData = {
-        userId: user.ID,
-        username: user.Username,
-        displayName: user.Display_Name,
-        role: user.Role,
-        sheetParam: user.Sheet_Param,
-        noAnggota: user.No_Anggota,
-        currentLoanId: user.Current_Loan_ID
-      };
-      storeSession(token, sessionData);
-      
       return {
         success: true,
-        token: token,
         user: {
           id: user.ID,
           displayName: user.Display_Name,
@@ -245,10 +235,9 @@ function apiLogin(username, password) {
 
 /**
  * Gets unique active resot list.
- * @param {string} token - Session token
  * @returns {Object} JSON response with resot array
  */
-function apiGetResotList(token) {
+function apiGetResotList() {
   var loans = getSheetData(SHEET_PINJAMAN);
   var resotMap = {};
   for (var i = 0; i < loans.length; i++) {
@@ -263,11 +252,10 @@ function apiGetResotList(token) {
 
 /**
  * Gets active nasabah by resot.
- * @param {string} token - Session token
  * @param {string} resot - Resot identifier
  * @returns {Object} JSON response with nasabah array
  */
-function apiGetNasabahByResot(token, resot) {
+function apiGetNasabahByResot(resot) {
   if (!resot) {
     return { success: false, error: 'Resot parameter is required', code: 400 };
   }
@@ -291,12 +279,11 @@ function apiGetNasabahByResot(token, resot) {
 
 /**
  * Processes batch payments.
- * @param {string} token - Session token
  * @param {string} resot - Resot identifier
  * @param {string|Array} payments - Payment data array
  * @returns {Object} JSON response with process summary
  */
-function apiBatchPayments(token, resot, payments) {
+function apiBatchPayments(resot, payments) {
   if (!resot || !payments) {
     return { success: false, error: 'Resot and payments are required', code: 400 };
   }
@@ -355,11 +342,10 @@ function apiBatchPayments(token, resot, payments) {
 
 /**
  * Renews a loan.
- * @param {string} token - Session token
  * @param {Object} data - Renewal data
  * @returns {Object} JSON response
  */
-function apiRenewLoan(token, data) {
+function apiRenewLoan(data) {
   var idPinjaman = data.idPinjaman;
   var pinjamanBaru = Number(data.pinjamanBaru);
   
@@ -443,10 +429,9 @@ function apiRenewLoan(token, data) {
 
 /**
  * Gets all users for admin.
- * @param {string} token - Session token
  * @returns {Object} JSON response
  */
-function apiGetUsers(token) {
+function apiGetUsers() {
   var users = getSheetData(SHEET_SETTING);
   var result = [];
   for (var i = 0; i < users.length; i++) {
@@ -469,11 +454,10 @@ function apiGetUsers(token) {
 
 /**
  * Adds a new user.
- * @param {string} token - Session token
  * @param {Object} data - User data
  * @returns {Object} JSON response
  */
-function apiAddUser(token, data) {
+function apiAddUser(data) {
   if (!data.username || !data.password || !data.displayName) {
     return { success: false, error: 'Username, password, and display name are required', code: 400 };
   }
@@ -509,11 +493,10 @@ function apiAddUser(token, data) {
 
 /**
  * Toggles a user setting.
- * @param {string} token - Session token
  * @param {Object} data - Setting data
  * @returns {Object} JSON response
  */
-function apiToggleSetting(token, data) {
+function apiToggleSetting(data) {
   if (!data.userId || !data.field || data.value === undefined) {
     return { success: false, error: 'Missing required parameters', code: 400 };
   }
@@ -548,11 +531,10 @@ function apiToggleSetting(token, data) {
 
 /**
  * Creates a new loan (Pinjaman Baru).
- * @param {string} token - Session token
  * @param {Object} data - { resot, noAnggota, nama, pinjamanBaru }
  * @returns {Object} JSON response
  */
-function apiCreateNewLoan(token, data) {
+function apiCreateNewLoan(data) {
   if (!data.resot || !data.noAnggota || !data.nama || !data.pinjamanBaru) {
     return { success: false, error: 'Data resot, no anggota, nama, dan nominal wajib diisi', code: 400 };
   }
@@ -608,11 +590,10 @@ function apiCreateNewLoan(token, data) {
 
 /**
  * Searches active loan by No. Anggota.
- * @param {string} token - Session token
  * @param {string} noAnggota - Member number
  * @returns {Object} JSON response
  */
-function apiSearchNasabah(token, resot, noAnggota) {
+function apiSearchNasabah(resot, noAnggota) {
   if (!resot) return { success: false, error: 'Resot wajib diisi', code: 400 };
   if (!noAnggota) return { success: false, error: 'No. Anggota wajib diisi', code: 400 };
   var normalizedResot = normalizeResot(resot);
@@ -641,11 +622,10 @@ function apiSearchNasabah(token, resot, noAnggota) {
 
 /**
  * Updates an existing user's information.
- * @param {string} token - Session token
  * @param {Object} data - { userId, displayName, role, sheetParam, noAnggota, newPassword }
  * @returns {Object} JSON response
  */
-function apiUpdateUser(token, data) {
+function apiUpdateUser(data) {
   if (!data.userId || !data.displayName || !data.role) {
     return { success: false, error: 'ID User, Nama Tampilan, dan Role wajib diisi', code: 400 };
   }
@@ -685,33 +665,32 @@ function apiUpdateUser(token, data) {
 
 /**
  * Gets nasabah dashboard summary.
- * @param {string} token - Session token
+ * @param {Object} user - User object from authentication
  * @returns {Object} JSON response
  */
-function apiGetNasabahSummary(token) {
-  var session = getSession(token);
+function apiGetNasabahSummary(user) {
   var users = getSheetData(SHEET_SETTING);
-  var user = null;
+  var userData = null;
 
   for (var i = 0; i < users.length; i++) {
-    if (users[i].ID === session.userId) {
-      user = users[i];
+    if (users[i].ID === user.userId) {
+      userData = users[i];
       break;
     }
   }
 
-  if (!user) {
+  if (!userData) {
     return { success: false, error: 'User not found', code: 404 };
   }
 
-  var isShowDetail = (user.Is_Show_Detail === true || String(user.Is_Show_Detail).toUpperCase() === 'TRUE');
-  var isShowTabungan = (user.Is_Show_Tabungan === true || String(user.Is_Show_Tabungan).toUpperCase() === 'TRUE');
+  var isShowDetail = (userData.Is_Show_Detail === true || String(userData.Is_Show_Detail).toUpperCase() === 'TRUE');
+  var isShowTabungan = (userData.Is_Show_Tabungan === true || String(userData.Is_Show_Tabungan).toUpperCase() === 'TRUE');
 
   var currentLoan = null;
-  if (user.Current_Loan_ID) {
+  if (userData.Current_Loan_ID) {
     var loans = getSheetData(SHEET_PINJAMAN);
     for (var j = 0; j < loans.length; j++) {
-      if (loans[j].ID_Pinjaman === user.Current_Loan_ID) {
+      if (loans[j].ID_Pinjaman === userData.Current_Loan_ID) {
         currentLoan = {
           idPinjaman: loans[j].ID_Pinjaman,
           resot: normalizeResot(loans[j].Resot),
@@ -745,9 +724,9 @@ function apiGetNasabahSummary(token) {
     success: true,
     data: {
       user: {
-        displayName: user.Display_Name,
-        noAnggota: user.No_Anggota,
-        sheetParam: user.Sheet_Param
+        displayName: userData.Display_Name,
+        noAnggota: userData.No_Anggota,
+        sheetParam: userData.Sheet_Param
       },
       loan: currentLoan,
       transactions: transactions,
@@ -759,23 +738,22 @@ function apiGetNasabahSummary(token) {
 
 /**
  * Changes nasabah password.
- * @param {string} token - Session token
+ * @param {Object} user - User object from authentication
  * @param {string} oldPassword - Old password
  * @param {string} newPassword - New password
  * @returns {Object} JSON response
  */
-function apiChangePassword(token, oldPassword, newPassword) {
+function apiChangePassword(user, oldPassword, newPassword) {
   if (!oldPassword || !newPassword || newPassword.length < 6) {
     return { success: false, error: 'Invalid input or new password too short', code: 400 };
   }
 
-  var session = getSession(token);
   var users = getSheetData(SHEET_SETTING);
   var targetRow = 0;
   var storedHashedPass = '';
 
   for (var i = 0; i < users.length; i++) {
-    if (users[i].ID === session.userId) {
+    if (users[i].ID === user.userId) {
       targetRow = users[i]._rowIndex;
       storedHashedPass = users[i].Password;
       break;
